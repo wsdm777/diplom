@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "diplom"
+version = "0.1.0"
+description = "Diet Planner API"
+authors = ["wsdm <kuznetsov06denis@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "0.115.0"
+uvicorn = {version = "0.30.6", extras = ["standard"]}
+sqlalchemy = "2.0.36"
+asyncpg = "0.30.0"
+alembic = "1.13.3"
+pydantic = "2.9.2"
+pydantic-settings = "2.5.2"
+python-jose = {version = "3.3.0", extras = ["cryptography"]}
+passlib = {version = "1.7.4", extras = ["bcrypt"]}
+bcrypt = "3.2.2"
+python-multipart = "0.0.12"
+email-validator = "2.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
