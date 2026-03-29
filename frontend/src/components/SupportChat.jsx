@@ -15,13 +15,17 @@ export default function SupportChat() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
+  const fetchMessages = () =>
+    api.get('/support/messages')
+      .then(({ data }) => setMessages(data))
+      .catch(() => {});
+
   useEffect(() => {
-    if (open && messages.length === 0) {
-      api.get('/support/messages')
-        .then(({ data }) => setMessages(data))
-        .catch(() => {});
-    }
-  }, [open]);
+    if (!open) return;
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (open) {

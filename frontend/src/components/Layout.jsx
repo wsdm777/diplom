@@ -13,6 +13,7 @@ import {
   HiBars3,
   HiXMark,
   HiOutlineChartBarSquare,
+  HiOutlineChatBubbleLeftEllipsis,
 } from 'react-icons/hi2';
 
 const userLinks = [
@@ -26,12 +27,19 @@ const adminLinks = [
   { to: '/', label: 'Аналитика', icon: HiOutlineChartBarSquare },
 ];
 
+const operatorLinks = [
+  { to: '/', label: 'Поддержка', icon: HiOutlineChatBubbleLeftEllipsis },
+];
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navLinks = user?.role === 'admin' ? adminLinks : userLinks;
+  const navLinks =
+    user?.role === 'admin' ? adminLinks :
+    user?.role === 'operator' ? operatorLinks :
+    userLinks;
 
   const handleLogout = async () => {
     await logout();

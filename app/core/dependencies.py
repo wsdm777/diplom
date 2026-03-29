@@ -33,3 +33,18 @@ async def require_admin(
             detail="Admin access required",
         )
     return current_user_id
+
+
+async def require_operator(
+    current_user_id: int = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+) -> int:
+    from app.repositories.user_repository import UserRepository
+
+    user = await UserRepository(session).get_by_id(current_user_id)
+    if not user or user.role.value != "operator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operator access required",
+        )
+    return current_user_id

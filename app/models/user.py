@@ -15,6 +15,7 @@ class Gender(str, PyEnum):
 class Role(str, PyEnum):
     user = "user"
     admin = "admin"
+    operator = "operator"
 
 
 class User(Base):
