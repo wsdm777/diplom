@@ -17,6 +17,8 @@ import {
   HiOutlineCake,
   HiOutlineScale,
   HiOutlinePrinter,
+  HiOutlinePencilSquare,
+  HiOutlineCalculator,
 } from 'react-icons/hi2';
 
 /* ───── Food database (per 100g) ───── */
@@ -148,6 +150,8 @@ export default function DietPlan() {
   const [lastWeight, setLastWeight] = useState(null);
   const [activityIdx, setActivityIdx] = useState(0);
   const [goalIdx, setGoalIdx] = useState(0);
+  const [customMode, setCustomMode] = useState(false);
+  const [customKcal, setCustomKcal] = useState('');
   const [menu, setMenu] = useState(null);
   const [animating, setAnimating] = useState(false);
 
@@ -160,7 +164,8 @@ export default function DietPlan() {
   const age = calcAge(user.birth_date);
   const bmr = lastWeight ? calcBMR(user.gender, lastWeight, user.height, age) : null;
   const tdee = bmr ? bmr * ACTIVITY[activityIdx].factor : null;
-  const targetKcal = tdee ? Math.round(tdee * GOALS[goalIdx].factor) : null;
+  const autoKcal = tdee ? Math.round(tdee * GOALS[goalIdx].factor) : null;
+  const targetKcal = customMode && customKcal ? Math.round(Number(customKcal)) : autoKcal;
 
   const handleGenerate = () => {
     if (!targetKcal) return;
@@ -233,39 +238,102 @@ export default function DietPlan() {
 
       {/* Settings */}
       <GlassCard className="p-6" delay={0.1}>
-        <div className="grid sm:grid-cols-2 gap-5 mb-5">
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1.5">Уровень активности</label>
-            <select
-              value={activityIdx}
-              onChange={(e) => { setActivityIdx(Number(e.target.value)); setMenu(null); }}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-            >
-              {ACTIVITY.map((a, i) => (<option key={i} value={i}>{a.label}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1.5">Цель</label>
-            <div className="grid grid-cols-3 gap-2">
-              {GOALS.map((g, i) => (
-                <motion.button
-                  key={i}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => { setGoalIdx(i); setMenu(null); }}
-                  className={`cursor-pointer py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition-all border ${
-                    goalIdx === i
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
-                      : 'bg-white/60 border-gray-200 text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-base block mb-0.5">{g.emoji}</span>
-                  {g.label.split(' (')[0]}
-                </motion.button>
-              ))}
-            </div>
-          </div>
+        {/* Mode toggle */}
+        <div className="flex items-center gap-2 mb-5">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => { setCustomMode(false); setMenu(null); }}
+            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+              !customMode
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
+                : 'bg-white/60 border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <HiOutlineCalculator className="w-4 h-4" />
+            Авто
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => { setCustomMode(true); setMenu(null); }}
+            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+              customMode
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
+                : 'bg-white/60 border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <HiOutlinePencilSquare className="w-4 h-4" />
+            Вручную
+          </motion.button>
         </div>
+
+        <AnimatePresence mode="wait">
+          {!customMode ? (
+            <motion.div
+              key="auto"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="grid sm:grid-cols-2 gap-5 mb-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1.5">Уровень активности</label>
+                  <select
+                    value={activityIdx}
+                    onChange={(e) => { setActivityIdx(Number(e.target.value)); setMenu(null); }}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  >
+                    {ACTIVITY.map((a, i) => (<option key={i} value={i}>{a.label}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1.5">Цель</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {GOALS.map((g, i) => (
+                      <motion.button
+                        key={i}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => { setGoalIdx(i); setMenu(null); }}
+                        className={`cursor-pointer py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition-all border ${
+                          goalIdx === i
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
+                            : 'bg-white/60 border-gray-200 text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="text-base block mb-0.5">{g.emoji}</span>
+                        {g.label.split(' (')[0]}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="custom"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-600 mb-1.5">Дневная калорийность (ккал)</label>
+                <motion.input
+                  whileFocus={{ boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' }}
+                  type="number"
+                  min="800"
+                  max="10000"
+                  step="50"
+                  value={customKcal}
+                  onChange={(e) => { setCustomKcal(e.target.value); setMenu(null); }}
+                  placeholder={autoKcal ? `например ${autoKcal}` : '2000'}
+                  className="w-full max-w-xs border border-gray-200 rounded-xl px-4 py-2.5 bg-white/80 text-gray-800 outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Parameters bar */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500 mb-5 pb-5 border-b border-gray-100">
@@ -274,11 +342,11 @@ export default function DietPlan() {
           <span>Возраст: <b className="text-gray-800">{age}</b></span>
           <span>BMR: <b className="text-gray-800">{Math.round(bmr)} ккал</b></span>
           <span className="text-emerald-700 font-bold text-base">
-            Цель: {targetKcal} ккал/день
+            Цель: {targetKcal || '—'} ккал/день
           </span>
         </div>
 
-        <Button onClick={handleGenerate} loading={animating} icon={menu ? HiOutlineArrowPath : HiOutlineBolt} size="lg">
+        <Button onClick={handleGenerate} loading={animating} disabled={!targetKcal} icon={menu ? HiOutlineArrowPath : HiOutlineBolt} size="lg">
           {menu ? 'Сгенерировать заново' : 'Сгенерировать меню'}
         </Button>
       </GlassCard>
