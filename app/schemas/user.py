@@ -33,6 +33,7 @@ class UserLogin(BaseModel):
 class Role(str, Enum):
     user = "user"
     admin = "admin"
+    operator = "operator"
 
 
 class UserOut(BaseModel):
