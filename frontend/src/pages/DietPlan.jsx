@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -19,6 +19,10 @@ import {
   HiOutlinePrinter,
   HiOutlinePencilSquare,
   HiOutlineCalculator,
+  HiOutlineTrash,
+  HiOutlineClock,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
 } from 'react-icons/hi2';
 
 /* ───── Diet filter options ───── */
@@ -139,6 +143,8 @@ export default function DietPlan() {
   const [dietFilters, setDietFilters] = useState({ vegan: false, lactose_free: false, gluten_free: false });
   const [menu, setMenu] = useState(null);
   const [animating, setAnimating] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [expandedPlan, setExpandedPlan] = useState(null);
 
   const fetchFoods = async (filters) => {
     const params = new URLSearchParams();
@@ -149,11 +155,21 @@ export default function DietPlan() {
     return data;
   };
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const { data } = await api.get('/menu-plans');
+      setHistory(data);
+    } catch {
+      // silent
+    }
+  }, []);
+
   useEffect(() => {
     api.get(`/users/${user.id}/weight`).then(({ data }) => {
       if (data.length > 0) setLastWeight(data[data.length - 1].weight);
     }).catch(() => {});
-  }, [user.id]);
+    fetchHistory();
+  }, [user.id, fetchHistory]);
 
   const age = calcAge(user.birth_date);
   const bmr = lastWeight ? calcBMR(user.gender, lastWeight, user.height, age) : null;
@@ -168,12 +184,73 @@ export default function DietPlan() {
     try {
       const freshFoods = await fetchFoods(dietFilters);
       const ratio = customMode ? macros : null;
-      setMenu(generateMenu(targetKcal, ratio, freshFoods));
-      toast.success('Меню сгенерировано!');
+      const generated = generateMenu(targetKcal, ratio, freshFoods);
+      setMenu(generated);
+
+      // build flat items list for saving
+      const allItems = Object.entries(generated).flatMap(([mealKey, meal]) =>
+        meal.items.map((item) => ({
+          meal_type: mealKey,
+          food_id: item.id,
+          name: item.name,
+          grams: item.grams,
+          kcal: item.kcal,
+          protein: item.protein,
+          fat: item.fat,
+          carb: item.carb,
+        }))
+      );
+      const total = Object.values(generated).reduce(
+        (acc, meal) => {
+          const t = mealTotal(meal.items);
+          return {
+            kcal: acc.kcal + t.kcal,
+            protein: +(acc.protein + t.protein).toFixed(1),
+            fat: +(acc.fat + t.fat).toFixed(1),
+            carb: +(acc.carb + t.carb).toFixed(1),
+          };
+        },
+        { kcal: 0, protein: 0, fat: 0, carb: 0 }
+      );
+
+      await api.post('/menu-plans', {
+        target_kcal: targetKcal,
+        total_kcal: total.kcal,
+        total_protein: total.protein,
+        total_fat: total.fat,
+        total_carb: total.carb,
+        items: allItems,
+      });
+      fetchHistory();
+      toast.success('Меню сгенерировано и сохранено!');
     } catch {
       toast.error('Не удалось загрузить продукты');
     } finally {
       setAnimating(false);
+    }
+  };
+
+  const handleDeletePlan = async (planId) => {
+    try {
+      await api.delete(`/menu-plans/${planId}`);
+      setHistory((prev) => prev.filter((p) => p.id !== planId));
+      if (expandedPlan === planId) setExpandedPlan(null);
+    } catch {
+      toast.error('Не удалось удалить меню');
+    }
+  };
+
+  const handleExpandPlan = async (planId) => {
+    if (expandedPlan === planId) {
+      setExpandedPlan(null);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/menu-plans/${planId}`);
+      setHistory((prev) => prev.map((p) => (p.id === planId ? data : p)));
+      setExpandedPlan(planId);
+    } catch {
+      toast.error('Не удалось загрузить меню');
     }
   };
 
@@ -518,6 +595,91 @@ export default function DietPlan() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* History */}
+      {history.length > 0 && (
+        <GlassCard className="p-6" delay={0.2}>
+          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <HiOutlineClock className="w-5 h-5 text-emerald-500" />
+            История меню
+          </h2>
+          <div className="space-y-2">
+            {history.map((plan) => (
+              <div key={plan.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-white/60">
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-400">
+                      {new Date(plan.created_at).toLocaleDateString('ru-RU', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                    <span className="font-semibold text-gray-700">{plan.total_kcal} ккал</span>
+                    <span className="hidden sm:inline text-gray-400">
+                      Б: <b className="text-gray-600">{plan.total_protein}г</b>{' '}
+                      Ж: <b className="text-gray-600">{plan.total_fat}г</b>{' '}
+                      У: <b className="text-gray-600">{plan.total_carb}г</b>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleExpandPlan(plan.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
+                      title="Подробнее"
+                    >
+                      {expandedPlan === plan.id
+                        ? <HiOutlineChevronUp className="w-4 h-4" />
+                        : <HiOutlineChevronDown className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => handleDeletePlan(plan.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
+                      title="Удалить"
+                    >
+                      <HiOutlineTrash className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {expandedPlan === plan.id && plan.items && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden border-t border-gray-100"
+                    >
+                      <div className="px-4 py-3 bg-gray-50/50 space-y-3">
+                        {['breakfast', 'lunch', 'dinner', 'snack'].map((mealKey) => {
+                          const mealLabels = { breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус' };
+                          const items = plan.items.filter((i) => i.meal_type === mealKey);
+                          if (items.length === 0) return null;
+                          return (
+                            <div key={mealKey}>
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                                {mealLabels[mealKey]}
+                              </p>
+                              <div className="space-y-1">
+                                {items.map((item) => (
+                                  <div key={item.id} className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-700">{item.name} <span className="text-gray-400">{item.grams}г</span></span>
+                                    <span className="text-gray-500 font-medium">{item.kcal} ккал</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
     </PageTransition>
   );
 }
