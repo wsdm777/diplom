@@ -11,13 +11,18 @@ import {
   HiOutlineArrowRightOnRectangle,
   HiBars3,
   HiXMark,
+  HiOutlineChartBarSquare,
 } from 'react-icons/hi2';
 
-const navLinks = [
+const userLinks = [
   { to: '/', label: 'Главная', icon: HiOutlineHome },
   { to: '/weight', label: 'Вес', icon: HiOutlineScale },
   { to: '/diet', label: 'Диета и меню', icon: HiOutlineClipboardDocumentList },
   { to: '/profile', label: 'Профиль', icon: HiOutlineUserCircle },
+];
+
+const adminLinks = [
+  { to: '/', label: 'Аналитика', icon: HiOutlineChartBarSquare },
 ];
 
 export default function Layout() {
@@ -25,6 +30,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navLinks = user?.role === 'admin' ? adminLinks : userLinks;
 
   const handleLogout = async () => {
     await logout();

@@ -12,6 +12,11 @@ class Gender(str, PyEnum):
     female = "female"
 
 
+class Role(str, PyEnum):
+    user = "user"
+    admin = "admin"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -24,6 +29,7 @@ class User(Base):
     gender: Mapped[Gender] = mapped_column(Enum(Gender), nullable=False)
     height: Mapped[float] = mapped_column(Float, nullable=False)  # cm
     birth_date: Mapped[date] = mapped_column(Date, nullable=False)
+    role: Mapped[Role] = mapped_column(Enum(Role), nullable=False, server_default="user")
 
     weight_entries: Mapped[list["WeightEntry"]] = relationship(
         "WeightEntry", back_populates="user", cascade="all, delete-orphan"

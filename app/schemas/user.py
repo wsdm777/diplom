@@ -30,6 +30,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class Role(str, Enum):
+    user = "user"
+    admin = "admin"
+
+
 class UserOut(BaseModel):
     id: int
     email: str
@@ -37,5 +42,6 @@ class UserOut(BaseModel):
     gender: Gender
     height: float
     birth_date: date
+    role: Role
 
     model_config = {"from_attributes": True}
