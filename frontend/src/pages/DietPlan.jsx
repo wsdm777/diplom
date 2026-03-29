@@ -21,48 +21,12 @@ import {
   HiOutlineCalculator,
 } from 'react-icons/hi2';
 
-/* ───── Food database (per 100g) ───── */
-const FOODS = {
-  breakfast: [
-    { name: 'Овсяная каша на воде', kcal: 88, protein: 3, fat: 1.7, carb: 15 },
-    { name: 'Яйцо куриное (варёное)', kcal: 155, protein: 12.6, fat: 10.6, carb: 1.1 },
-    { name: 'Творог 5%', kcal: 121, protein: 17.2, fat: 5, carb: 1.8 },
-    { name: 'Банан', kcal: 89, protein: 1.1, fat: 0.3, carb: 23 },
-    { name: 'Цельнозерновой хлеб', kcal: 247, protein: 13, fat: 3.4, carb: 41 },
-    { name: 'Йогурт натуральный', kcal: 60, protein: 4, fat: 1.5, carb: 7 },
-    { name: 'Омлет из 2 яиц', kcal: 154, protein: 11, fat: 12, carb: 0.7 },
-    { name: 'Гречневая каша', kcal: 110, protein: 4.2, fat: 1.1, carb: 21 },
-  ],
-  lunch: [
-    { name: 'Куриная грудка (варёная)', kcal: 165, protein: 31, fat: 3.6, carb: 0 },
-    { name: 'Рис бурый (варёный)', kcal: 123, protein: 2.7, fat: 0.9, carb: 25.6 },
-    { name: 'Гречка (варёная)', kcal: 110, protein: 4.2, fat: 1.1, carb: 21 },
-    { name: 'Говядина (тушёная)', kcal: 232, protein: 25.8, fat: 14.7, carb: 0 },
-    { name: 'Овощной салат', kcal: 35, protein: 1.5, fat: 0.2, carb: 7 },
-    { name: 'Суп куриный', kcal: 48, protein: 3.6, fat: 1.4, carb: 5 },
-    { name: 'Макароны (твёрдые сорта)', kcal: 131, protein: 5.1, fat: 1.1, carb: 27 },
-    { name: 'Лосось (запечённый)', kcal: 208, protein: 20, fat: 13, carb: 0 },
-    { name: 'Картофель (отварной)', kcal: 82, protein: 2, fat: 0.1, carb: 17 },
-  ],
-  dinner: [
-    { name: 'Рыба (треска запечённая)', kcal: 90, protein: 17.8, fat: 0.7, carb: 0 },
-    { name: 'Салат из свежих овощей', kcal: 35, protein: 1.5, fat: 0.2, carb: 7 },
-    { name: 'Куриная грудка (гриль)', kcal: 165, protein: 31, fat: 3.6, carb: 0 },
-    { name: 'Тушёные овощи', kcal: 55, protein: 2, fat: 1.5, carb: 8 },
-    { name: 'Кефир 1%', kcal: 40, protein: 3, fat: 1, carb: 4 },
-    { name: 'Индейка (варёная)', kcal: 130, protein: 29, fat: 1, carb: 0 },
-    { name: 'Брокколи на пару', kcal: 35, protein: 2.4, fat: 0.4, carb: 7 },
-    { name: 'Творог 2%', kcal: 103, protein: 18, fat: 2, carb: 3.3 },
-  ],
-  snack: [
-    { name: 'Яблоко', kcal: 52, protein: 0.3, fat: 0.2, carb: 14 },
-    { name: 'Миндаль (30 г)', kcal: 170, protein: 6, fat: 15, carb: 6 },
-    { name: 'Греческий йогурт', kcal: 59, protein: 10, fat: 0.7, carb: 3.6 },
-    { name: 'Банан', kcal: 89, protein: 1.1, fat: 0.3, carb: 23 },
-    { name: 'Протеиновый батончик', kcal: 200, protein: 20, fat: 7, carb: 22 },
-    { name: 'Морковь', kcal: 41, protein: 0.9, fat: 0.2, carb: 10 },
-  ],
-};
+/* ───── Diet filter options ───── */
+const DIET_FILTERS = [
+  { key: 'vegan', label: 'Веган' },
+  { key: 'lactose_free', label: 'Без лактозы' },
+  { key: 'gluten_free', label: 'Без глютена' },
+];
 
 const mealIcons = {
   breakfast: HiOutlineSun,
@@ -113,16 +77,25 @@ function pickItems(pool, targetKcal, macroRatio) {
   return selected;
 }
 
-function generateMenu(totalKcal, macroRatio) {
+function groupByMeal(foods) {
+  const groups = { breakfast: [], lunch: [], dinner: [], snack: [] };
+  for (const f of foods) {
+    if (groups[f.meal_type]) groups[f.meal_type].push(f);
+  }
+  return groups;
+}
+
+function generateMenu(totalKcal, macroRatio, foods) {
+  const grouped = groupByMeal(foods);
   const bKcal = Math.round(totalKcal * 0.3);
   const lKcal = Math.round(totalKcal * 0.35);
   const dKcal = Math.round(totalKcal * 0.25);
   const sKcal = totalKcal - bKcal - lKcal - dKcal;
   return {
-    breakfast: { label: 'Завтрак', items: pickItems(FOODS.breakfast, bKcal, macroRatio), targetKcal: bKcal },
-    lunch: { label: 'Обед', items: pickItems(FOODS.lunch, lKcal, macroRatio), targetKcal: lKcal },
-    dinner: { label: 'Ужин', items: pickItems(FOODS.dinner, dKcal, macroRatio), targetKcal: dKcal },
-    snack: { label: 'Перекус', items: pickItems(FOODS.snack, sKcal, macroRatio), targetKcal: sKcal },
+    breakfast: { label: 'Завтрак', items: pickItems(grouped.breakfast, bKcal, macroRatio), targetKcal: bKcal },
+    lunch: { label: 'Обед', items: pickItems(grouped.lunch, lKcal, macroRatio), targetKcal: lKcal },
+    dinner: { label: 'Ужин', items: pickItems(grouped.dinner, dKcal, macroRatio), targetKcal: dKcal },
+    snack: { label: 'Перекус', items: pickItems(grouped.snack, sKcal, macroRatio), targetKcal: sKcal },
   };
 }
 
@@ -163,14 +136,29 @@ export default function DietPlan() {
   const [customMode, setCustomMode] = useState(false);
   const [customKcal, setCustomKcal] = useState('');
   const [macros, setMacros] = useState({ protein: 30, fat: 25, carb: 45 });
+  const [dietFilters, setDietFilters] = useState({ vegan: false, lactose_free: false, gluten_free: false });
+  const [foods, setFoods] = useState([]);
   const [menu, setMenu] = useState(null);
   const [animating, setAnimating] = useState(false);
+
+  const fetchFoods = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (dietFilters.vegan) params.set('vegan', 'true');
+      if (dietFilters.lactose_free) params.set('lactose_free', 'true');
+      if (dietFilters.gluten_free) params.set('gluten_free', 'true');
+      const { data } = await api.get(`/foods?${params}`);
+      setFoods(data);
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     api.get(`/users/${user.id}/weight`).then(({ data }) => {
       if (data.length > 0) setLastWeight(data[data.length - 1].weight);
     }).catch(() => {});
   }, [user.id]);
+
+  useEffect(() => { fetchFoods(); }, [dietFilters.vegan, dietFilters.lactose_free, dietFilters.gluten_free]);
 
   const age = calcAge(user.birth_date);
   const bmr = lastWeight ? calcBMR(user.gender, lastWeight, user.height, age) : null;
@@ -184,7 +172,7 @@ export default function DietPlan() {
     setMenu(null);
     setTimeout(() => {
       const ratio = customMode ? macros : null;
-      setMenu(generateMenu(targetKcal, ratio));
+      setMenu(generateMenu(targetKcal, ratio, foods));
       setAnimating(false);
       toast.success('Меню сгенерировано!');
     }, 600);
@@ -250,6 +238,22 @@ export default function DietPlan() {
 
       {/* Settings */}
       <GlassCard className="p-6" delay={0.1}>
+        {/* Diet filters */}
+        <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-600">Ограничения:</span>
+          {DIET_FILTERS.map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={dietFilters[key]}
+                onChange={(e) => { setDietFilters({ ...dietFilters, [key]: e.target.checked }); setMenu(null); }}
+                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-sm text-gray-600">{label}</span>
+            </label>
+          ))}
+        </div>
+
         {/* Mode toggle */}
         <div className="flex items-center gap-2 mb-5">
           <motion.button
