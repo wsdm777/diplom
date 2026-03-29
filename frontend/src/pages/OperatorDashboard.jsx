@@ -105,8 +105,8 @@ export default function OperatorDashboard() {
   const selectedConv = conversations.find((c) => c.user_id === selectedUserId);
 
   return (
-    <PageTransition className="space-y-6">
-      <div>
+    <PageTransition className="flex flex-col gap-4" style={{ height: 'calc(100vh - 136px)' }}>
+      <div className="flex-shrink-0">
         <motion.h1
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -124,9 +124,9 @@ export default function OperatorDashboard() {
         </motion.p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4" style={{ minHeight: '560px' }}>
+      <div className="grid lg:grid-cols-3 gap-4 flex-1 min-h-0">
         {/* Conversation list */}
-        <GlassCard className="p-0 overflow-hidden flex flex-col" delay={0.1}>
+        <GlassCard className="p-0 overflow-hidden flex flex-col min-h-0" delay={0.1}>
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="text-sm font-semibold text-gray-600 flex items-center gap-2">
               <HiOutlineChatBubbleLeftRight className="w-4 h-4 text-emerald-500" />
@@ -179,7 +179,7 @@ export default function OperatorDashboard() {
         </GlassCard>
 
         {/* Chat panel */}
-        <GlassCard className="lg:col-span-2 p-0 overflow-hidden flex flex-col" delay={0.15}>
+        <GlassCard className="lg:col-span-2 p-0 overflow-hidden flex flex-col min-h-0" delay={0.15}>
           <AnimatePresence mode="wait">
             {!selectedUserId ? (
               <motion.div
@@ -213,7 +213,7 @@ export default function OperatorDashboard() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 bg-gray-50/40" style={{ minHeight: '340px' }}>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-2 bg-gray-50/40">
                   {messages.map((msg) => (
                     <div
                       key={msg.id}

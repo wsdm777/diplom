@@ -225,7 +225,7 @@ export default function Layout() {
       </main>
 
       {/* ─── Support Chat (users only) ─── */}
-      {user && user.role !== 'admin' && <SupportChat />}
+      {user && user.role === 'user' && <SupportChat />}
 
       {/* ─── Footer ─── */}
       <footer className="border-t border-gray-200/50 bg-white/50 backdrop-blur-sm py-8">
