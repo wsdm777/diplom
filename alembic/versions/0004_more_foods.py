@@ -5,6 +5,7 @@ Revises: 0003
 Create Date: 2026-03-29
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -33,7 +34,17 @@ SEED = [
     ("Пшеничная каша", "breakfast", 113, 3.5, 1.3, 23, True, True, False),
     ("Chia пудинг на кокосовом молоке", "breakfast", 180, 4, 11, 17, True, True, True),
     ("Кокосовая гранола", "breakfast", 430, 7, 18, 60, True, True, False),
-    ("Рисовые лепёшки с арахисовой пастой", "breakfast", 220, 7, 10, 27, True, True, True),
+    (
+        "Рисовые лепёшки с арахисовой пастой",
+        "breakfast",
+        220,
+        7,
+        10,
+        27,
+        True,
+        True,
+        True,
+    ),
     ("Смузи-боул", "breakfast", 180, 5, 4, 33, True, True, True),
     ("Протеиновый коктейль", "breakfast", 160, 25, 3, 9, False, True, True),
     ("Творог с мёдом", "breakfast", 140, 15, 4, 14, False, False, True),
@@ -54,7 +65,6 @@ SEED = [
     ("Запечённое яблоко с корицей", "breakfast", 78, 0.5, 0.5, 19, True, True, True),
     ("Кокосовый йогурт", "breakfast", 90, 1, 6, 8, True, True, True),
     ("Амарантовая каша", "breakfast", 103, 4, 1.8, 19, True, True, True),
-
     # ── lunch (52) ──────────────────────────────────────────────────────────
     ("Свинина запечённая", "lunch", 259, 25, 17, 0, False, True, True),
     ("Телятина тушёная", "lunch", 197, 27, 10, 0, False, True, True),
@@ -108,7 +118,6 @@ SEED = [
     ("Омлет с овощами (на обед)", "lunch", 170, 13, 11, 6, False, True, True),
     ("Яичница с помидорами", "lunch", 155, 10, 11, 5, False, True, True),
     ("Куриные котлеты на пару (2 шт)", "lunch", 175, 23, 7, 4, False, True, True),
-
     # ── dinner (37) ─────────────────────────────────────────────────────────
     ("Минтай на пару", "dinner", 72, 15.9, 0.9, 0, False, True, True),
     ("Хек запечённый", "dinner", 86, 16.6, 2.2, 0, False, True, True),
@@ -147,7 +156,6 @@ SEED = [
     ("Зелёный салат с авокадо", "dinner", 115, 2, 10, 7, True, True, True),
     ("Свёкла запечённая", "dinner", 43, 1.5, 0.1, 10, True, True, True),
     ("Паровые рыбные котлеты", "dinner", 105, 17, 4, 2, False, True, True),
-
     # ── snack (23) ──────────────────────────────────────────────────────────
     ("Груша", "snack", 57, 0.4, 0.1, 15, True, True, True),
     ("Апельсин", "snack", 47, 0.9, 0.2, 12, True, True, True),
@@ -176,24 +184,12 @@ SEED = [
 
 
 def upgrade() -> None:
-    from sqlalchemy.sql import table, column
-    from sqlalchemy import String, Float, Boolean, Enum as SAEnum
-
-    foods_table = table(
-        "foods",
-        column("name", String),
-        column("meal_type", String),
-        column("kcal", Float),
-        column("protein", Float),
-        column("fat", Float),
-        column("carb", Float),
-        column("is_vegan", Boolean),
-        column("is_lactose_free", Boolean),
-        column("is_gluten_free", Boolean),
-    )
-
-    op.bulk_insert(
-        foods_table,
+    conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            "INSERT INTO foods (name, meal_type, kcal, protein, fat, carb, is_vegan, is_lactose_free, is_gluten_free) "
+            "VALUES (:name, :meal_type::mealtype, :kcal, :protein, :fat, :carb, :is_vegan, :is_lf, :is_gf)"
+        ),
         [
             {
                 "name": name,
@@ -203,8 +199,8 @@ def upgrade() -> None:
                 "fat": fat,
                 "carb": carb,
                 "is_vegan": is_vegan,
-                "is_lactose_free": is_lf,
-                "is_gluten_free": is_gf,
+                "is_lf": is_lf,
+                "is_gf": is_gf,
             }
             for name, meal_type, kcal, protein, fat, carb, is_vegan, is_lf, is_gf in SEED
         ],
