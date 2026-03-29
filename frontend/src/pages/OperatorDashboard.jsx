@@ -95,6 +95,7 @@ export default function OperatorDashboard() {
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === ' ') e.stopPropagation();
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleReply();
