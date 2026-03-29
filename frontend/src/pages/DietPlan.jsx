@@ -346,45 +346,30 @@ export default function DietPlan() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-3">Соотношение БЖУ</label>
-                  <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-600 mb-1.5">Соотношение БЖУ (%)</label>
+                  <div className="flex items-center gap-3">
                     {[
-                      { key: 'protein', label: 'Белки', accent: 'accent-emerald-500', text: 'text-emerald-600' },
-                      { key: 'fat', label: 'Жиры', accent: 'accent-amber-500', text: 'text-amber-600' },
-                      { key: 'carb', label: 'Углеводы', accent: 'accent-blue-500', text: 'text-blue-600' },
-                    ].map(({ key, label, accent, text }) => (
-                      <div key={key} className="flex items-center gap-3">
-                        <span className="text-sm text-gray-500 w-20">{label}</span>
-                        <input
-                          type="range"
+                      { key: 'protein', label: 'Б' },
+                      { key: 'fat', label: 'Ж' },
+                      { key: 'carb', label: 'У' },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="flex items-center gap-1.5">
+                        <span className="text-sm text-gray-500">{label}</span>
+                        <motion.input
+                          whileFocus={{ boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' }}
+                          type="number"
                           min="5"
-                          max="70"
+                          max="80"
                           value={macros[key]}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            const others = Object.keys(macros).filter((k) => k !== key);
-                            const othersSum = macros[others[0]] + macros[others[1]];
-                            const remaining = 100 - val;
-                            const newMacros = { ...macros, [key]: val };
-                            if (othersSum > 0) {
-                              newMacros[others[0]] = Math.round(macros[others[0]] / othersSum * remaining);
-                              newMacros[others[1]] = remaining - newMacros[others[0]];
-                            } else {
-                              newMacros[others[0]] = Math.round(remaining / 2);
-                              newMacros[others[1]] = remaining - newMacros[others[0]];
-                            }
-                            setMacros(newMacros);
-                            setMenu(null);
-                          }}
-                          className={`flex-1 h-2 rounded-full appearance-none cursor-pointer ${accent}`}
+                          onChange={(e) => { setMacros({ ...macros, [key]: Number(e.target.value) }); setMenu(null); }}
+                          className="w-16 border border-gray-200 rounded-xl px-3 py-2 bg-white/80 text-gray-800 text-center text-sm outline-none focus:border-emerald-500 transition-all"
                         />
-                        <span className={`text-sm font-bold w-12 text-right ${text}`}>{macros[key]}%</span>
                       </div>
                     ))}
+                    <span className={`text-sm font-semibold ${macros.protein + macros.fat + macros.carb === 100 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      = {macros.protein + macros.fat + macros.carb}%
+                    </span>
                   </div>
-                  {macros.protein + macros.fat + macros.carb !== 100 && (
-                    <p className="text-xs text-red-500 mt-2">Сумма должна быть 100%</p>
-                  )}
                 </div>
               </div>
             </motion.div>
