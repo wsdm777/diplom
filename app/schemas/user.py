@@ -19,6 +19,12 @@ class UserRegister(BaseModel):
     weight: float | None = Field(default=None, gt=0, le=500, description="Weight in kg")
 
 
+class UserUpdate(BaseModel):
+    gender: Gender | None = None
+    height: float | None = Field(default=None, gt=0, le=300)
+    birth_date: date | None = None
+
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
