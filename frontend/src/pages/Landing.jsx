@@ -21,10 +21,10 @@ const fadeUp = {
 
 const features = [
   {
-    icon: HiOutlineCalculator,
-    title: 'Расчёт калорийности',
-    desc: 'Автоматический расчёт BMR и TDEE по формуле Миффлина-Сан Жеора с учётом ваших параметров',
-    color: 'emerald',
+    icon: HiOutlineBolt,
+    title: 'Мгновенный результат',
+    desc: 'Получите готовый план питания за секунды — без долгих расчётов и подбора продуктов вручную',
+    color: 'rose',
   },
   {
     icon: HiOutlineClipboardDocumentList,
@@ -45,10 +45,10 @@ const features = [
     color: 'orange',
   },
   {
-    icon: HiOutlineBolt,
-    title: 'Мгновенный результат',
-    desc: 'Получите готовый план питания за секунды — без долгих расчётов и подбора продуктов вручную',
-    color: 'rose',
+    icon: HiOutlineCalculator,
+    title: 'Расчёт калорийности',
+    desc: 'Автоматический расчёт BMR и TDEE по формуле Миффлина-Сан Жеора с учётом ваших параметров',
+    color: 'emerald',
   },
   {
     icon: HiOutlineShieldCheck,
