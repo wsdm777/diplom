@@ -15,6 +15,15 @@ class WeightService:
         entry = await self.weight_repo.create(user_id, data.weight)
         return WeightOut.model_validate(entry)
 
+    async def delete_weight(self, entry_id: int, user_id: int) -> None:
+        entry = await self.weight_repo.get_by_id(entry_id)
+        if not entry or entry.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Weight entry not found",
+            )
+        await self.weight_repo.delete(entry)
+
     async def get_history(self, user_id: int, requesting_user_id: int) -> list[WeightOut]:
         user = await self.user_repo.get_by_id(user_id)
         if not user:

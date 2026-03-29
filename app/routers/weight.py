@@ -18,6 +18,15 @@ async def add_weight(
     return await WeightService(session).add_weight(current_user_id, data)
 
 
+@router.delete("/me/weight/{entry_id}", status_code=204)
+async def delete_weight(
+    entry_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    await WeightService(session).delete_weight(entry_id, current_user_id)
+
+
 @router.get("/{user_id}/weight", response_model=list[WeightOut])
 async def get_weight_history(
     user_id: int,

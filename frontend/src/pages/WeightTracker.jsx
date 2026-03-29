@@ -13,6 +13,7 @@ import {
   HiOutlineArrowTrendingDown,
   HiOutlineArrowTrendingUp,
   HiOutlineChartBar,
+  HiOutlineTrash,
 } from 'react-icons/hi2';
 import {
   ResponsiveContainer,
@@ -61,6 +62,16 @@ export default function WeightTracker() {
       toast.error(err.response?.data?.detail || 'Ошибка');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (entryId) => {
+    try {
+      await api.delete(`/users/me/weight/${entryId}`);
+      toast.success('Запись удалена');
+      await fetchEntries();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Ошибка удаления');
     }
   };
 
@@ -190,6 +201,7 @@ export default function WeightTracker() {
                   <th className="text-left py-3 font-semibold text-xs uppercase tracking-wider">Дата</th>
                   <th className="text-right py-3 font-semibold text-xs uppercase tracking-wider">Вес (кг)</th>
                   <th className="text-right py-3 font-semibold text-xs uppercase tracking-wider">Разница</th>
+                  <th className="w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -227,6 +239,15 @@ export default function WeightTracker() {
                           ) : (
                             <span className="text-gray-300">—</span>
                           )}
+                        </td>
+                        <td className="py-3 text-right">
+                          <button
+                            onClick={() => handleDelete(e.id)}
+                            className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Удалить"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
                         </td>
                       </motion.tr>
                     );
