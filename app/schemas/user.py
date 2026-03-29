@@ -16,6 +16,7 @@ class UserRegister(BaseModel):
     gender: Gender
     height: float = Field(gt=0, le=300, description="Height in cm")
     birth_date: date
+    weight: float | None = Field(default=None, gt=0, le=500, description="Weight in kg")
 
 
 class UserLogin(BaseModel):

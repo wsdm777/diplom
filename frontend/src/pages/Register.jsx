@@ -21,6 +21,7 @@ export default function Register() {
     name: '',
     gender: 'male',
     height: '',
+    weight: '',
     birth_date: '',
   });
   const [error, setError] = useState('');
@@ -33,7 +34,13 @@ export default function Register() {
     setError('');
     setSubmitting(true);
     try {
-      await register({ ...form, height: parseFloat(form.height) });
+      const payload = { ...form, height: parseFloat(form.height) };
+      if (form.weight) {
+        payload.weight = parseFloat(form.weight);
+      } else {
+        delete payload.weight;
+      }
+      await register(payload);
       toast.success('Регистрация успешна! Теперь войдите.');
       navigate('/login');
     } catch (err) {
@@ -137,6 +144,17 @@ export default function Register() {
                   placeholder="170"
                 />
               </div>
+
+              <Input
+                label="Вес (кг)"
+                type="number"
+                min="1"
+                max="500"
+                step="0.1"
+                value={form.weight}
+                onChange={set('weight')}
+                placeholder="70 (необязательно)"
+              />
 
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1.5">Дата рождения</label>

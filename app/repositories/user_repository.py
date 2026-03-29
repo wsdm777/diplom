@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.models.user import User
+from app.models.weight import WeightEntry
 from app.schemas.user import UserRegister
 
 
@@ -28,6 +29,9 @@ class UserRepository:
             birth_date=data.birth_date,
         )
         self.session.add(user)
+        await self.session.flush()
+        if data.weight is not None:
+            self.session.add(WeightEntry(user_id=user.id, weight=data.weight))
         await self.session.commit()
         await self.session.refresh(user)
         return user
