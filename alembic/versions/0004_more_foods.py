@@ -185,26 +185,16 @@ SEED = [
 
 def upgrade() -> None:
     conn = op.get_bind()
-    conn.execute(
-        sa.text(
-            "INSERT INTO foods (name, meal_type, kcal, protein, fat, carb, is_vegan, is_lactose_free, is_gluten_free) "
-            "VALUES (:name, :meal_type::mealtype, :kcal, :protein, :fat, :carb, :is_vegan, :is_lf, :is_gf)"
-        ),
-        [
-            {
-                "name": name,
-                "meal_type": meal_type,
-                "kcal": kcal,
-                "protein": protein,
-                "fat": fat,
-                "carb": carb,
-                "is_vegan": is_vegan,
-                "is_lf": is_lf,
-                "is_gf": is_gf,
-            }
-            for name, meal_type, kcal, protein, fat, carb, is_vegan, is_lf, is_gf in SEED
-        ],
-    )
+    for name, meal_type, kcal, protein, fat, carb, is_vegan, is_lf, is_gf in SEED:
+        conn.execute(
+            sa.text(
+                "INSERT INTO foods (name, meal_type, kcal, protein, fat, carb, is_vegan, is_lactose_free, is_gluten_free) "
+                f"VALUES (:name, '{meal_type}'::mealtype, :kcal, :protein, :fat, :carb, :is_vegan, :is_lf, :is_gf)"
+            ).bindparams(
+                name=name, kcal=kcal, protein=protein, fat=fat, carb=carb,
+                is_vegan=is_vegan, is_lf=is_lf, is_gf=is_gf,
+            )
+        )
 
 
 def downgrade() -> None:
