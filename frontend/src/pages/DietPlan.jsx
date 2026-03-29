@@ -79,12 +79,22 @@ const mealColors = {
 };
 
 /* ───── Menu generator ───── */
-function pickItems(pool, targetKcal) {
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+function macroScore(item, targetRatio) {
+  if (!targetRatio) return Math.random();
+  const total = item.protein * 4 + item.fat * 9 + item.carb * 4;
+  if (total === 0) return Math.random();
+  const pPct = (item.protein * 4) / total * 100;
+  const fPct = (item.fat * 9) / total * 100;
+  const cPct = (item.carb * 4) / total * 100;
+  return Math.abs(pPct - targetRatio.protein) + Math.abs(fPct - targetRatio.fat) + Math.abs(cPct - targetRatio.carb);
+}
+
+function pickItems(pool, targetKcal, macroRatio) {
+  const sorted = [...pool].sort((a, b) => macroScore(a, macroRatio) - macroScore(b, macroRatio));
   const selected = [];
   let remaining = targetKcal;
 
-  for (const item of shuffled) {
+  for (const item of sorted) {
     if (remaining <= 30) break;
     const grams = Math.min(Math.round((remaining / item.kcal) * 100), 300);
     if (grams < 30) continue;
@@ -103,16 +113,16 @@ function pickItems(pool, targetKcal) {
   return selected;
 }
 
-function generateMenu(totalKcal) {
+function generateMenu(totalKcal, macroRatio) {
   const bKcal = Math.round(totalKcal * 0.3);
   const lKcal = Math.round(totalKcal * 0.35);
   const dKcal = Math.round(totalKcal * 0.25);
   const sKcal = totalKcal - bKcal - lKcal - dKcal;
   return {
-    breakfast: { label: 'Завтрак', items: pickItems(FOODS.breakfast, bKcal), targetKcal: bKcal },
-    lunch: { label: 'Обед', items: pickItems(FOODS.lunch, lKcal), targetKcal: lKcal },
-    dinner: { label: 'Ужин', items: pickItems(FOODS.dinner, dKcal), targetKcal: dKcal },
-    snack: { label: 'Перекус', items: pickItems(FOODS.snack, sKcal), targetKcal: sKcal },
+    breakfast: { label: 'Завтрак', items: pickItems(FOODS.breakfast, bKcal, macroRatio), targetKcal: bKcal },
+    lunch: { label: 'Обед', items: pickItems(FOODS.lunch, lKcal, macroRatio), targetKcal: lKcal },
+    dinner: { label: 'Ужин', items: pickItems(FOODS.dinner, dKcal, macroRatio), targetKcal: dKcal },
+    snack: { label: 'Перекус', items: pickItems(FOODS.snack, sKcal, macroRatio), targetKcal: sKcal },
   };
 }
 
@@ -152,6 +162,7 @@ export default function DietPlan() {
   const [goalIdx, setGoalIdx] = useState(0);
   const [customMode, setCustomMode] = useState(false);
   const [customKcal, setCustomKcal] = useState('');
+  const [macros, setMacros] = useState({ protein: 30, fat: 25, carb: 45 });
   const [menu, setMenu] = useState(null);
   const [animating, setAnimating] = useState(false);
 
@@ -172,7 +183,8 @@ export default function DietPlan() {
     setAnimating(true);
     setMenu(null);
     setTimeout(() => {
-      setMenu(generateMenu(targetKcal));
+      const ratio = customMode ? macros : null;
+      setMenu(generateMenu(targetKcal, ratio));
       setAnimating(false);
       toast.success('Меню сгенерировано!');
     }, 600);
@@ -317,19 +329,63 @@ export default function DietPlan() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-600 mb-1.5">Дневная калорийность (ккал)</label>
-                <motion.input
-                  whileFocus={{ boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' }}
-                  type="number"
-                  min="800"
-                  max="10000"
-                  step="50"
-                  value={customKcal}
-                  onChange={(e) => { setCustomKcal(e.target.value); setMenu(null); }}
-                  placeholder={autoKcal ? `например ${autoKcal}` : '2000'}
-                  className="w-full max-w-xs border border-gray-200 rounded-xl px-4 py-2.5 bg-white/80 text-gray-800 outline-none focus:border-emerald-500 transition-all"
-                />
+              <div className="space-y-5 mb-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1.5">Дневная калорийность (ккал)</label>
+                  <motion.input
+                    whileFocus={{ boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' }}
+                    type="number"
+                    min="800"
+                    max="10000"
+                    step="50"
+                    value={customKcal}
+                    onChange={(e) => { setCustomKcal(e.target.value); setMenu(null); }}
+                    placeholder={autoKcal ? `например ${autoKcal}` : '2000'}
+                    className="w-full max-w-xs border border-gray-200 rounded-xl px-4 py-2.5 bg-white/80 text-gray-800 outline-none focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-3">Соотношение БЖУ</label>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'protein', label: 'Белки', accent: 'accent-emerald-500', text: 'text-emerald-600' },
+                      { key: 'fat', label: 'Жиры', accent: 'accent-amber-500', text: 'text-amber-600' },
+                      { key: 'carb', label: 'Углеводы', accent: 'accent-blue-500', text: 'text-blue-600' },
+                    ].map(({ key, label, accent, text }) => (
+                      <div key={key} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500 w-20">{label}</span>
+                        <input
+                          type="range"
+                          min="5"
+                          max="70"
+                          value={macros[key]}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            const others = Object.keys(macros).filter((k) => k !== key);
+                            const othersSum = macros[others[0]] + macros[others[1]];
+                            const remaining = 100 - val;
+                            const newMacros = { ...macros, [key]: val };
+                            if (othersSum > 0) {
+                              newMacros[others[0]] = Math.round(macros[others[0]] / othersSum * remaining);
+                              newMacros[others[1]] = remaining - newMacros[others[0]];
+                            } else {
+                              newMacros[others[0]] = Math.round(remaining / 2);
+                              newMacros[others[1]] = remaining - newMacros[others[0]];
+                            }
+                            setMacros(newMacros);
+                            setMenu(null);
+                          }}
+                          className={`flex-1 h-2 rounded-full appearance-none cursor-pointer ${accent}`}
+                        />
+                        <span className={`text-sm font-bold w-12 text-right ${text}`}>{macros[key]}%</span>
+                      </div>
+                    ))}
+                  </div>
+                  {macros.protein + macros.fat + macros.carb !== 100 && (
+                    <p className="text-xs text-red-500 mt-2">Сумма должна быть 100%</p>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
