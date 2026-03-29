@@ -137,19 +137,16 @@ export default function DietPlan() {
   const [customKcal, setCustomKcal] = useState('');
   const [macros, setMacros] = useState({ protein: 30, fat: 25, carb: 45 });
   const [dietFilters, setDietFilters] = useState({ vegan: false, lactose_free: false, gluten_free: false });
-  const [foods, setFoods] = useState([]);
   const [menu, setMenu] = useState(null);
   const [animating, setAnimating] = useState(false);
 
-  const fetchFoods = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (dietFilters.vegan) params.set('vegan', 'true');
-      if (dietFilters.lactose_free) params.set('lactose_free', 'true');
-      if (dietFilters.gluten_free) params.set('gluten_free', 'true');
-      const { data } = await api.get(`/foods?${params}`);
-      setFoods(data);
-    } catch { /* ignore */ }
+  const fetchFoods = async (filters) => {
+    const params = new URLSearchParams();
+    if (filters.vegan) params.set('vegan', 'true');
+    if (filters.lactose_free) params.set('lactose_free', 'true');
+    if (filters.gluten_free) params.set('gluten_free', 'true');
+    const { data } = await api.get(`/foods?${params}`);
+    return data;
   };
 
   useEffect(() => {
@@ -158,24 +155,26 @@ export default function DietPlan() {
     }).catch(() => {});
   }, [user.id]);
 
-  useEffect(() => { fetchFoods(); }, [dietFilters.vegan, dietFilters.lactose_free, dietFilters.gluten_free]);
-
   const age = calcAge(user.birth_date);
   const bmr = lastWeight ? calcBMR(user.gender, lastWeight, user.height, age) : null;
   const tdee = bmr ? bmr * ACTIVITY[activityIdx].factor : null;
   const autoKcal = tdee ? Math.round(tdee * GOALS[goalIdx].factor) : null;
   const targetKcal = customMode && customKcal ? Math.round(Number(customKcal)) : autoKcal;
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!targetKcal) return;
     setAnimating(true);
     setMenu(null);
-    setTimeout(() => {
+    try {
+      const freshFoods = await fetchFoods(dietFilters);
       const ratio = customMode ? macros : null;
-      setMenu(generateMenu(targetKcal, ratio, foods));
-      setAnimating(false);
+      setMenu(generateMenu(targetKcal, ratio, freshFoods));
       toast.success('Меню сгенерировано!');
-    }, 600);
+    } catch {
+      toast.error('Не удалось загрузить продукты');
+    } finally {
+      setAnimating(false);
+    }
   };
 
   if (!lastWeight) {
