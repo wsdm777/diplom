@@ -162,24 +162,25 @@ export default function Dashboard() {
           </div>
 
           {/* BMI scale */}
-          <div className="relative h-4 bg-gradient-to-r from-blue-400 via-emerald-400 via-60% to-red-400 rounded-full overflow-hidden mb-2">
+          <div className="relative mt-2 mb-6">
+            <div className="h-3 bg-gradient-to-r from-blue-400 via-emerald-400 via-60% to-red-400 rounded-full" />
             <motion.div
               initial={{ left: '0%' }}
               animate={{ left: `${Math.min(Math.max(((bmi - 15) / 25) * 100, 0), 100)}%` }}
               transition={{ delay: 0.5, duration: 0.8, ease: 'easeOut' }}
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 bg-white rounded-full shadow-lg border-2 border-gray-800"
-            />
+              className="absolute -bottom-5 -translate-x-1/2 flex flex-col items-center"
+            >
+              <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[7px] border-l-transparent border-r-transparent border-b-gray-700" />
+              <span className="text-xs font-bold text-gray-700 mt-0.5">{bmi.toFixed(1)}</span>
+            </motion.div>
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>15</span>
+              <span>18.5</span>
+              <span>25</span>
+              <span>30</span>
+              <span>40</span>
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-400">
-            <span>15</span>
-            <span>18.5</span>
-            <span>25</span>
-            <span>30</span>
-            <span>40</span>
-          </div>
-          <p className="text-center mt-3 text-2xl font-bold text-gray-800">
-            <AnimatedNumber value={bmi} decimals={1} />
-          </p>
         </GlassCard>
       )}
 
