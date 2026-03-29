@@ -46,15 +46,24 @@ async def get_stats(
         )
     ).all()
 
-    # registrations per day (approximate by user id — no created_at, use weight first entry)
+    # registrations per day (first weight entry per user as proxy for registration)
+    first_entry = (
+        select(
+            WeightEntry.user_id,
+            func.min(WeightEntry.measured_at).label("first_at"),
+        )
+        .group_by(WeightEntry.user_id)
+    ).subquery()
+
     users_with_weight = (
         await session.execute(
             select(
-                func.date(func.min(WeightEntry.measured_at)).label("day"),
-                func.count(func.distinct(WeightEntry.user_id)).label("count"),
+                func.date(first_entry.c.first_at).label("day"),
+                func.count().label("count"),
             )
-            .where(WeightEntry.measured_at >= since)
-            .group_by(func.date(func.min(WeightEntry.measured_at)))
+            .where(first_entry.c.first_at >= since)
+            .group_by(func.date(first_entry.c.first_at))
+            .order_by(func.date(first_entry.c.first_at))
         )
     ).all()
 
