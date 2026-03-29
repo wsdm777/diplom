@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import SupportChat from './SupportChat';
 import {
   HiOutlineHome,
   HiOutlineScale,
@@ -214,6 +215,9 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* ─── Support Chat (users only) ─── */}
+      {user && user.role !== 'admin' && <SupportChat />}
 
       {/* ─── Footer ─── */}
       <footer className="border-t border-gray-200/50 bg-white/50 backdrop-blur-sm py-8">
