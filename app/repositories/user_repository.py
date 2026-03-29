@@ -3,7 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.models.user import User
-from app.schemas.user import UserRegister
+from app.models.weight import WeightEntry
+from app.schemas.user import UserRegister, UserUpdate
 
 
 class UserRepository:
@@ -18,6 +19,13 @@ class UserRepository:
         result = await self.session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
+    async def update(self, user: User, data: UserUpdate) -> User:
+        for field, value in data.model_dump(exclude_none=True).items():
+            setattr(user, field, value)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
     async def create(self, data: UserRegister) -> User:
         user = User(
             email=data.email,
@@ -28,6 +36,9 @@ class UserRepository:
             birth_date=data.birth_date,
         )
         self.session.add(user)
+        await self.session.flush()
+        if data.weight is not None:
+            self.session.add(WeightEntry(user_id=user.id, weight=data.weight))
         await self.session.commit()
         await self.session.refresh(user)
         return user

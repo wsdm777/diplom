@@ -6,10 +6,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-diplom}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diplom}
       POSTGRES_DB: ${POSTGRES_DB:-diplom_db}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-diplom} -d ${POSTGRES_DB:-diplom_db}"]
       interval: 5s
@@ -21,8 +21,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -31,9 +29,22 @@ services:
     build: ./frontend
     restart: unless-stopped
     ports:
-      - "8888:8888"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
     depends_on:
       - api
 
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
+
 volumes:
   postgres_data:
+  certbot_www:
+  certbot_conf:
