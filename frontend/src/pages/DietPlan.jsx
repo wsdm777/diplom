@@ -387,7 +387,7 @@ export default function DietPlan() {
           </span>
         </div>
 
-        <Button onClick={handleGenerate} loading={animating} disabled={!targetKcal} icon={menu ? HiOutlineArrowPath : HiOutlineBolt} size="lg">
+        <Button onClick={handleGenerate} loading={animating} disabled={!targetKcal || (customMode && macros.protein + macros.fat + macros.carb !== 100)} icon={menu ? HiOutlineArrowPath : HiOutlineBolt} size="lg">
           {menu ? 'Сгенерировать заново' : 'Сгенерировать меню'}
         </Button>
       </GlassCard>
