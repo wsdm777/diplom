@@ -7,11 +7,15 @@ Create Date: 2026-03-29
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 
 revision = "0005"
 down_revision = "0004"
 branch_labels = None
 depends_on = None
+
+# reuse existing enum — do NOT create it again
+meal_type_enum = PgEnum("breakfast", "lunch", "dinner", "snack", name="mealtype", create_type=False)
 
 
 def upgrade() -> None:
@@ -47,11 +51,7 @@ def upgrade() -> None:
             sa.ForeignKey("menu_plans.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column(
-            "meal_type",
-            sa.Enum("breakfast", "lunch", "dinner", "snack", name="mealtype", create_type=False),
-            nullable=False,
-        ),
+        sa.Column("meal_type", meal_type_enum, nullable=False),
         sa.Column("food_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(200), nullable=False),
         sa.Column("grams", sa.Integer(), nullable=False),
