@@ -48,7 +48,7 @@ export default function Register() {
       if (typeof detail === 'string') {
         setError(detail);
       } else if (Array.isArray(detail)) {
-        setError(detail.map((e) => e.msg).join('; '));
+        setError(detail.map((e) => e.msg.replace(/^Value error, /i, '')).join('; '));
       } else {
         setError('Ошибка регистрации');
       }
