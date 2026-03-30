@@ -44,7 +44,14 @@ export default function Register() {
       toast.success('Регистрация успешна! Теперь войдите.');
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка регистрации');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((e) => e.msg).join('; '));
+      } else {
+        setError('Ошибка регистрации');
+      }
     } finally {
       setSubmitting(false);
     }
