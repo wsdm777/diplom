@@ -29,11 +29,13 @@ export default function OperatorDashboard() {
   const [messages, setMessages] = useState([]);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('');
   const bottomRef = useRef(null);
 
   const fetchConversations = async () => {
     try {
-      const { data } = await api.get('/support/conversations');
+      const params = typeFilter ? { message_type: typeFilter } : {};
+      const { data } = await api.get('/support/conversations', { params });
       setConversations(data);
     } catch {
       toast.error('Не удалось загрузить чаты');
@@ -44,7 +46,7 @@ export default function OperatorDashboard() {
     fetchConversations();
     const interval = setInterval(fetchConversations, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [typeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openConversation = async (userId) => {
     setSelectedUserId(userId);
@@ -127,7 +129,7 @@ export default function OperatorDashboard() {
       <div className="grid lg:grid-cols-3 gap-4 flex-1 min-h-0">
         {/* Conversation list */}
         <GlassCard className="p-0 overflow-hidden flex flex-col min-h-0" delay={0.1}>
-          <div className="px-4 py-3 border-b border-gray-100">
+          <div className="px-4 py-3 border-b border-gray-100 space-y-2">
             <p className="text-sm font-semibold text-gray-600 flex items-center gap-2">
               <HiOutlineChatBubbleLeftRight className="w-4 h-4 text-emerald-500" />
               Диалоги
@@ -137,6 +139,32 @@ export default function OperatorDashboard() {
                 </span>
               )}
             </p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setTypeFilter('')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  !typeFilter ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                Все
+              </button>
+              <button
+                onClick={() => setTypeFilter('complaint')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  typeFilter === 'complaint' ? 'bg-red-100 text-red-700 ring-1 ring-red-300' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                Жалобы
+              </button>
+              <button
+                onClick={() => setTypeFilter('suggestion')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  typeFilter === 'suggestion' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                Предложения
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
             {conversations.length === 0 ? (
@@ -226,6 +254,15 @@ export default function OperatorDashboard() {
                             : 'bg-white border border-gray-200 text-gray-700 rounded-tl-sm'
                         }`}
                       >
+                        {!msg.is_from_operator && msg.message_type && (
+                          <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded mb-1 ${
+                            msg.message_type === 'complaint'
+                              ? 'bg-red-100 text-red-600'
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {msg.message_type === 'complaint' ? 'Жалоба' : 'Предложение'}
+                          </span>
+                        )}
                         <p className="leading-snug break-words">{msg.content}</p>
                         <p className={`text-xs mt-1 ${msg.is_from_operator ? 'text-emerald-100' : 'text-gray-400'}`}>
                           {formatTime(msg.created_at)}

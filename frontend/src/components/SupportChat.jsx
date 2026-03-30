@@ -12,6 +12,7 @@ export default function SupportChat() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
+  const [messageType, setMessageType] = useState('complaint');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
@@ -38,7 +39,7 @@ export default function SupportChat() {
     if (!trimmed || sending) return;
     setSending(true);
     try {
-      const { data } = await api.post('/support/messages', { content: trimmed });
+      const { data } = await api.post('/support/messages', { content: trimmed, message_type: messageType });
       setMessages((prev) => [...prev, data]);
       setText('');
     } catch {
@@ -107,6 +108,15 @@ export default function SupportChat() {
                           : 'bg-emerald-500 text-white rounded-tr-sm'
                       }`}
                     >
+                      {!msg.is_from_operator && msg.message_type && (
+                        <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded mb-1 ${
+                          msg.message_type === 'complaint'
+                            ? 'bg-red-400/30 text-red-100'
+                            : 'bg-blue-400/30 text-blue-100'
+                        }`}>
+                          {msg.message_type === 'complaint' ? 'Жалоба' : 'Предложение'}
+                        </span>
+                      )}
                       <p className="leading-snug break-words">{msg.content}</p>
                       <p className={`text-xs mt-1 ${msg.is_from_operator ? 'text-gray-400' : 'text-emerald-100'}`}>
                         {new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
@@ -119,24 +129,50 @@ export default function SupportChat() {
             </div>
 
             {/* Input */}
-            <div className="px-3 py-3 border-t border-gray-100 bg-white flex items-end gap-2">
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Напишите сообщение..."
-                rows={1}
-                className="flex-1 resize-none border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-emerald-400 transition-colors bg-gray-50"
-                style={{ maxHeight: '80px', overflowY: 'auto' }}
-              />
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={handleSend}
-                disabled={!text.trim() || sending}
-                className="w-9 h-9 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed flex-shrink-0"
-              >
-                <HiPaperAirplane className="w-4 h-4 text-white" />
-              </motion.button>
+            <div className="px-3 py-3 border-t border-gray-100 bg-white space-y-2">
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMessageType('complaint')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    messageType === 'complaint'
+                      ? 'bg-red-100 text-red-700 ring-1 ring-red-300'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  Жалоба
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMessageType('suggestion')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    messageType === 'suggestion'
+                      ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  Предложение
+                </button>
+              </div>
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Напишите сообщение..."
+                  rows={1}
+                  className="flex-1 resize-none border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-emerald-400 transition-colors bg-gray-50"
+                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                />
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleSend}
+                  disabled={!text.trim() || sending}
+                  className="w-9 h-9 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  <HiPaperAirplane className="w-4 h-4 text-white" />
+                </motion.button>
+              </div>
             </div>
           </motion.div>
         )}

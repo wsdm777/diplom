@@ -11,8 +11,8 @@ class SupportRepository:
 
     # ── User side ──────────────────────────────────────────────────────────
 
-    async def create(self, user_id: int, content: str) -> SupportMessage:
-        msg = SupportMessage(user_id=user_id, content=content)
+    async def create(self, user_id: int, content: str, message_type: str = "complaint") -> SupportMessage:
+        msg = SupportMessage(user_id=user_id, content=content, message_type=message_type)
         self.session.add(msg)
         await self.session.commit()
         await self.session.refresh(msg)
@@ -28,23 +28,29 @@ class SupportRepository:
 
     # ── Operator side ──────────────────────────────────────────────────────
 
-    async def list_conversations(self) -> list:
+    async def list_conversations(self, message_type: str | None = None) -> list:
         """Return one row per user: user_id, user_name, last_at, unread_count."""
+        unread_filter = [
+            SupportMessage.is_from_operator == False,  # noqa: E712
+            SupportMessage.is_read == False,            # noqa: E712
+        ]
+        if message_type:
+            unread_filter.append(SupportMessage.message_type == message_type)
+
         unread_sq = (
             select(
                 SupportMessage.user_id,
                 func.count(SupportMessage.id).label("unread_count"),
             )
-            .where(
-                and_(
-                    SupportMessage.is_from_operator == False,  # noqa: E712
-                    SupportMessage.is_read == False,           # noqa: E712
-                )
-            )
+            .where(and_(*unread_filter))
             .group_by(SupportMessage.user_id)
         ).subquery()
 
-        result = await self.session.execute(
+        msg_filter = []
+        if message_type:
+            msg_filter.append(SupportMessage.message_type == message_type)
+
+        query = (
             select(
                 User.id.label("user_id"),
                 User.name.label("user_name"),
@@ -56,6 +62,10 @@ class SupportRepository:
             .group_by(User.id, User.name, unread_sq.c.unread_count)
             .order_by(func.max(SupportMessage.created_at).desc())
         )
+        if msg_filter:
+            query = query.where(and_(*msg_filter))
+
+        result = await self.session.execute(query)
         return result.all()
 
     async def list_by_user_for_operator(self, user_id: int) -> list[SupportMessage]:
