@@ -163,6 +163,7 @@ export default function Register() {
                   required
                   value={form.birth_date}
                   onChange={set('birth_date')}
+                  max={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 16); return d.toISOString().split('T')[0]; })()}
                   whileFocus={{ boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' }}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 bg-white/80 backdrop-blur-sm text-gray-800 outline-none focus:border-emerald-500 transition-all"
                 />
