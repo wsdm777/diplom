@@ -57,12 +57,17 @@ function macroScore(item, targetRatio) {
   return Math.abs(pPct - targetRatio.protein) + Math.abs(fPct - targetRatio.fat) + Math.abs(cPct - targetRatio.carb);
 }
 
-function pickItems(pool, targetKcal, macroRatio) {
-  const sorted = [...pool].sort((a, b) => macroScore(a, macroRatio) - macroScore(b, macroRatio));
+function pickItems(pool, targetKcal, macroRatio, excludeIds = []) {
+  const filtered = excludeIds.length > 0 ? pool.filter((f) => !excludeIds.includes(f.id)) : pool;
+  const shuffled = [...filtered].sort((a, b) => {
+    const sa = macroScore(a, macroRatio) + Math.random() * 20;
+    const sb = macroScore(b, macroRatio) + Math.random() * 20;
+    return sa - sb;
+  });
   const selected = [];
   let remaining = targetKcal;
 
-  for (const item of sorted) {
+  for (const item of shuffled) {
     if (remaining <= 30) break;
     const grams = Math.min(Math.round((remaining / item.kcal) * 100), 300);
     if (grams < 30) continue;
@@ -142,6 +147,7 @@ export default function DietPlan() {
   const [macros, setMacros] = useState({ protein: 30, fat: 25, carb: 45 });
   const [dietFilters, setDietFilters] = useState({ vegan: false, lactose_free: false, gluten_free: false });
   const [menu, setMenu] = useState(null);
+  const [cachedFoods, setCachedFoods] = useState(null);
   const [animating, setAnimating] = useState(false);
   const [history, setHistory] = useState([]);
   const [expandedPlan, setExpandedPlan] = useState(null);
@@ -183,6 +189,7 @@ export default function DietPlan() {
     setMenu(null);
     try {
       const freshFoods = await fetchFoods(dietFilters);
+      setCachedFoods(freshFoods);
       const ratio = customMode ? macros : null;
       const generated = generateMenu(targetKcal, ratio, freshFoods);
       setMenu(generated);
@@ -228,6 +235,18 @@ export default function DietPlan() {
     } finally {
       setAnimating(false);
     }
+  };
+
+  const handleRegenerateMeal = (mealKey) => {
+    if (!menu || !cachedFoods) return;
+    const grouped = groupByMeal(cachedFoods);
+    const ratio = customMode ? macros : null;
+    const currentIds = menu[mealKey].items.map((i) => i.id);
+    const newItems = pickItems(grouped[mealKey], menu[mealKey].targetKcal, ratio, currentIds);
+    setMenu((prev) => ({
+      ...prev,
+      [mealKey]: { ...prev[mealKey], items: newItems },
+    }));
   };
 
   const handleDeletePlan = async (planId) => {
@@ -505,9 +524,20 @@ export default function DietPlan() {
                         <p className="text-white/70 text-xs">~{meal.targetKcal} ккал</p>
                       </div>
                     </div>
-                    <div className="text-right text-white">
-                      <p className="text-2xl font-extrabold">{totals.kcal}</p>
-                      <p className="text-white/70 text-xs">ккал</p>
+                    <div className="flex items-center gap-3">
+                      <motion.button
+                        whileHover={{ scale: 1.1, rotate: 180 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleRegenerateMeal(key)}
+                        className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/30 transition-colors no-print"
+                        title="Заменить блюда"
+                      >
+                        <HiOutlineArrowPath className="w-4 h-4 text-white" />
+                      </motion.button>
+                      <div className="text-right text-white">
+                        <p className="text-2xl font-extrabold">{totals.kcal}</p>
+                        <p className="text-white/70 text-xs">ккал</p>
+                      </div>
                     </div>
                   </div>
 
