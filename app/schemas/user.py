@@ -1,7 +1,7 @@
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class Gender(str, Enum):
@@ -17,6 +17,15 @@ class UserRegister(BaseModel):
     height: float = Field(gt=0, le=300, description="Height in cm")
     birth_date: date
     weight: float | None = Field(default=None, gt=0, le=500, description="Weight in kg")
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_age(cls, v: date) -> date:
+        today = date.today()
+        age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
+        if age < 16:
+            raise ValueError("Регистрация доступна только для лиц от 16 лет")
+        return v
 
 
 class UserUpdate(BaseModel):
