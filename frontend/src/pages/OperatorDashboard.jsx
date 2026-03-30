@@ -30,7 +30,9 @@ export default function OperatorDashboard() {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [typeFilter, setTypeFilter] = useState('');
+  const [sortBy, setSortBy] = useState('time');
   const bottomRef = useRef(null);
+  const shouldScrollRef = useRef(false);
 
   const fetchConversations = async () => {
     try {
@@ -51,6 +53,7 @@ export default function OperatorDashboard() {
   const openConversation = async (userId) => {
     setSelectedUserId(userId);
     setMessages([]);
+    shouldScrollRef.current = true;
     try {
       const { data } = await api.get(`/support/conversations/${userId}`);
       setMessages(data);
@@ -76,7 +79,10 @@ export default function OperatorDashboard() {
   }, [selectedUserId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (shouldScrollRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      shouldScrollRef.current = false;
+    }
   }, [messages]);
 
   const handleReply = async () => {
@@ -87,6 +93,7 @@ export default function OperatorDashboard() {
       const { data } = await api.post(`/support/conversations/${selectedUserId}`, {
         content: trimmed,
       });
+      shouldScrollRef.current = true;
       setMessages((prev) => [...prev, data]);
       setReplyText('');
     } catch {
@@ -104,15 +111,29 @@ export default function OperatorDashboard() {
     }
   };
 
+  const sortedConversations = [...conversations].sort((a, b) => {
+    if (sortBy === 'complaints') {
+      const aComplaint = a.has_complaint ? 1 : 0;
+      const bComplaint = b.has_complaint ? 1 : 0;
+      if (bComplaint !== aComplaint) return bComplaint - aComplaint;
+    }
+    if (sortBy === 'suggestions') {
+      const aSuggestion = a.has_suggestion ? 1 : 0;
+      const bSuggestion = b.has_suggestion ? 1 : 0;
+      if (bSuggestion !== aSuggestion) return bSuggestion - aSuggestion;
+    }
+    return new Date(b.last_at) - new Date(a.last_at);
+  });
+
   const selectedConv = conversations.find((c) => c.user_id === selectedUserId);
 
   return (
-    <PageTransition className="flex flex-col gap-4" style={{ height: 'calc(100vh - 136px)' }}>
-      <div className="flex-shrink-0">
+    <PageTransition className="flex flex-col gap-3" style={{ height: 'calc(100vh - 120px)' }}>
+      <div className="flex-shrink-0 flex items-center gap-3">
         <motion.h1
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-3xl sm:text-4xl font-extrabold text-gray-900"
+          className="text-2xl sm:text-3xl font-extrabold text-gray-900"
         >
           Поддержка
         </motion.h1>
@@ -120,13 +141,13 @@ export default function OperatorDashboard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="text-gray-400 mt-1"
+          className="text-gray-400 text-sm"
         >
           Обращения пользователей
         </motion.p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4 flex-1 min-h-0">
+      <div className="grid lg:grid-cols-3 gap-3 flex-1 min-h-0">
         {/* Conversation list */}
         <GlassCard className="p-0 overflow-hidden flex flex-col min-h-0" delay={0.1}>
           <div className="px-4 py-3 border-b border-gray-100 space-y-2">
@@ -139,7 +160,7 @@ export default function OperatorDashboard() {
                 </span>
               )}
             </p>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => setTypeFilter('')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
@@ -165,14 +186,32 @@ export default function OperatorDashboard() {
                 Предложения
               </button>
             </div>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-xs text-gray-400">Сорт:</span>
+              {[
+                { key: 'time', label: 'По времени' },
+                { key: 'complaints', label: 'Жалобы' },
+                { key: 'suggestions', label: 'Предложения' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSortBy(key)}
+                  className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    sortBy === key ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-            {conversations.length === 0 ? (
+            {sortedConversations.length === 0 ? (
               <div className="flex items-center justify-center h-40">
                 <p className="text-sm text-gray-400">Пока нет обращений</p>
               </div>
             ) : (
-              conversations.map((conv) => (
+              sortedConversations.map((conv) => (
                 <motion.button
                   key={conv.user_id}
                   whileHover={{ backgroundColor: 'rgba(16,185,129,0.04)' }}

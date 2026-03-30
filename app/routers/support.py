@@ -18,6 +18,8 @@ class ConversationOut(BaseModel):
     user_name: str
     last_at: datetime
     unread_count: int
+    has_complaint: bool = False
+    has_suggestion: bool = False
 
 
 # ── User endpoints ──────────────────────────────────────────────────────────

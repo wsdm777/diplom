@@ -1,4 +1,4 @@
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.support import SupportMessage
@@ -56,6 +56,20 @@ class SupportRepository:
                 User.name.label("user_name"),
                 func.max(SupportMessage.created_at).label("last_at"),
                 func.coalesce(unread_sq.c.unread_count, 0).label("unread_count"),
+                func.max(case(
+                    (and_(
+                        SupportMessage.message_type == "complaint",
+                        SupportMessage.is_from_operator == False,  # noqa: E712
+                    ), 1),
+                    else_=0,
+                )).label("has_complaint"),
+                func.max(case(
+                    (and_(
+                        SupportMessage.message_type == "suggestion",
+                        SupportMessage.is_from_operator == False,  # noqa: E712
+                    ), 1),
+                    else_=0,
+                )).label("has_suggestion"),
             )
             .join(SupportMessage, SupportMessage.user_id == User.id)
             .outerjoin(unread_sq, User.id == unread_sq.c.user_id)
