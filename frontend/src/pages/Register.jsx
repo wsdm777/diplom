@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import PageTransition from '../components/ui/PageTransition';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import LegalModal from '../components/LegalModal';
 
 export default function Register() {
   const { register } = useAuth();
@@ -26,11 +27,17 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [legalModal, setLegalModal] = useState({ open: false, tab: 'terms' });
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!agreed) {
+      setError('Необходимо принять пользовательское соглашение и политику обработки персональных данных');
+      return;
+    }
     setError('');
     setSubmitting(true);
     try {
@@ -176,10 +183,61 @@ export default function Register() {
                 />
               </div>
 
-              <Button type="submit" loading={submitting} size="lg" className="w-full">
+              {/* Consent checkbox */}
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAgreed((v) => !v)}
+                  className={`mt-0.5 w-5 h-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-all ${
+                    agreed
+                      ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-500'
+                      : 'border-gray-300 bg-white hover:border-emerald-400'
+                  }`}
+                  aria-checked={agreed}
+                  role="checkbox"
+                >
+                  {agreed && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                      <path
+                        d="M2 6l3 3 5-5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+                <p className="text-sm text-gray-500 leading-snug">
+                  Я ознакомился(-ась) и принимаю условия{' '}
+                  <button
+                    type="button"
+                    onClick={() => setLegalModal({ open: true, tab: 'terms' })}
+                    className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline transition-colors"
+                  >
+                    Пользовательского соглашения
+                  </button>{' '}
+                  и даю согласие на обработку персональных данных в соответствии с{' '}
+                  <button
+                    type="button"
+                    onClick={() => setLegalModal({ open: true, tab: 'privacy' })}
+                    className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline transition-colors"
+                  >
+                    Политикой конфиденциальности
+                  </button>
+                </p>
+              </div>
+
+              <Button type="submit" loading={submitting} size="lg" className="w-full" disabled={!agreed}>
                 Зарегистрироваться
               </Button>
             </form>
+
+            <LegalModal
+              isOpen={legalModal.open}
+              initialTab={legalModal.tab}
+              onClose={() => setLegalModal((s) => ({ ...s, open: false }))}
+            />
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-400">
