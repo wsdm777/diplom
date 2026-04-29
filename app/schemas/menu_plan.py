@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.models.menu_plan import MenuPlanStatus
 
 
 class MenuPlanItemCreate(BaseModel):
@@ -56,11 +57,8 @@ class MenuPlanItemOut(BaseModel):
     carb: float
 
 
-MenuPlanStatusLiteral = Literal["pending", "processing", "completed", "failed"]
-
-
 class MenuPlanOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     id: int
     created_at: datetime
@@ -69,13 +67,13 @@ class MenuPlanOut(BaseModel):
     total_protein: float
     total_fat: float
     total_carb: float
-    status: MenuPlanStatusLiteral
+    status: MenuPlanStatus
     error_message: str | None = None
     items: list[MenuPlanItemOut]
 
 
 class MenuPlanSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     id: int
     created_at: datetime
@@ -84,4 +82,4 @@ class MenuPlanSummary(BaseModel):
     total_protein: float
     total_fat: float
     total_carb: float
-    status: MenuPlanStatusLiteral
+    status: MenuPlanStatus

@@ -96,6 +96,22 @@ const sumItems = (items) =>
     { kcal: 0, protein: 0, fat: 0, carb: 0 },
   );
 
+const KCAL_MIN = 800;
+const KCAL_MAX = 10000;
+
+function formatApiError(err, fallback) {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((e) => (typeof e === 'string' ? e : e?.msg))
+      .filter(Boolean);
+    if (msgs.length) return msgs.join('; ');
+  }
+  if (err?.message) return err.message;
+  return fallback;
+}
+
 function planToMenu(plan, targetKcal) {
   if (!plan?.items) return null;
   const menu = {};
@@ -174,15 +190,22 @@ export default function DietPlan() {
         return;
       }
       pollRef.current = setTimeout(() => pollPlan(planId, targetKcalForPoll), 2000);
-    } catch {
+    } catch (err) {
       setGenerating(false);
-      setGenError('Не удалось получить статус генерации');
-      toast.error('Ошибка опроса статуса');
+      const msg = formatApiError(err, 'Не удалось получить статус генерации');
+      setGenError(msg);
+      toast.error(msg);
     }
   }, [fetchHistory]);
 
   const handleGenerate = async () => {
     if (!targetKcal) return;
+    if (targetKcal < KCAL_MIN || targetKcal > KCAL_MAX) {
+      const msg = `Калорийность должна быть от ${KCAL_MIN} до ${KCAL_MAX} ккал. Сейчас ${targetKcal}.`;
+      setGenError(msg);
+      toast.error(msg);
+      return;
+    }
     setGenError(null);
     setMenu(null);
     setGenerating(true);
@@ -198,7 +221,7 @@ export default function DietPlan() {
     } catch (err) {
       setGenerating(false);
       setGenStatus(null);
-      const msg = err?.response?.data?.detail || 'Не удалось запустить генерацию';
+      const msg = formatApiError(err, 'Не удалось запустить генерацию');
       setGenError(msg);
       toast.error(msg);
     }
@@ -444,12 +467,25 @@ export default function DietPlan() {
         <Button
           onClick={handleGenerate}
           loading={generating}
-          disabled={generating || !targetKcal || (customMode && macros.protein + macros.fat + macros.carb !== 100)}
+          disabled={
+            generating ||
+            !targetKcal ||
+            targetKcal < KCAL_MIN ||
+            targetKcal > KCAL_MAX ||
+            (customMode && macros.protein + macros.fat + macros.carb !== 100)
+          }
           icon={menu ? HiOutlineArrowPath : HiOutlineBolt}
           size="lg"
         >
           {menu ? 'Сгенерировать заново' : 'Сгенерировать меню'}
         </Button>
+
+        {targetKcal && (targetKcal < KCAL_MIN || targetKcal > KCAL_MAX) && (
+          <p className="mt-3 text-sm text-amber-700">
+            Калорийность {targetKcal} ккал/день вне допустимого диапазона
+            ({KCAL_MIN}–{KCAL_MAX}). Проверьте параметры или введите значение вручную.
+          </p>
+        )}
 
         {generating && (
           <motion.div
@@ -472,7 +508,7 @@ export default function DietPlan() {
 
         {genError && !generating && (
           <div className="mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-            {genError}
+            {typeof genError === 'string' ? genError : 'Произошла ошибка'}
           </div>
         )}
       </GlassCard>
