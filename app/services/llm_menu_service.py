@@ -59,6 +59,8 @@ def _build_user_prompt(
         for f in foods
     ]
 
+    logger.info(f"{catalog=}")
+
     meal_targets = {
         meal.value: round(target_kcal * share)
         for meal, share in MEAL_KCAL_SHARE.items()
@@ -137,7 +139,9 @@ def _build_items(
         if meal_type != food.meal_type.value:
             logger.warning(
                 "LLM mismatched meal_type for food_id=%s (got %s, expected %s) — using catalog value",
-                food_id, meal_type, food.meal_type.value,
+                food_id,
+                meal_type,
+                food.meal_type.value,
             )
             meal_type = food.meal_type.value
         grams = int(raw["grams"])
@@ -203,6 +207,27 @@ class LLMMenuService:
                 "X-Title": "Diet Planner",
             },
         )
+
+        # OpenRouter может вернуть 200 без choices, положив причину в поле error.
+        upstream_error = getattr(response, "error", None) or (
+            response.model_extra or {}
+        ).get("error")
+        if upstream_error:
+            msg = (
+                upstream_error.get("message")
+                if isinstance(upstream_error, dict)
+                else str(upstream_error)
+            )
+            logger.error("OpenRouter upstream error: %s", upstream_error)
+            raise RuntimeError(f"Провайдер LLM вернул ошибку: {msg or upstream_error}")
+
+        if not response.choices:
+            logger.error("LLM response has no choices: %s", response.model_dump())
+            raise RuntimeError(
+                "LLM вернула пустой ответ (нет choices). "
+                "Возможно, превышен лимит бесплатной модели — попробуйте позже "
+                "или поменяйте OPENROUTER_MODEL."
+            )
 
         content = response.choices[0].message.content or ""
         if not content.strip():
