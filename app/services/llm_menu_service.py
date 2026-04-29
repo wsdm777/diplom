@@ -1,8 +1,8 @@
 import json
-import logging
 import re
 from dataclasses import dataclass
 
+from loguru import logger
 from openai import AsyncOpenAI
 
 from app.core.config import settings
@@ -12,8 +12,6 @@ from app.schemas.menu_plan import (
     MacroRatio,
     MenuPlanItemCreate,
 )
-
-logger = logging.getLogger(__name__)
 
 MEAL_KCAL_SHARE = {
     MealType.breakfast: 0.30,
