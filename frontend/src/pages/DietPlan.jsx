@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -23,6 +23,7 @@ import {
   HiOutlineClock,
   HiOutlineChevronDown,
   HiOutlineChevronUp,
+  HiOutlineSparkles,
 } from 'react-icons/hi2';
 
 /* ───── Diet filter options ───── */
@@ -31,6 +32,22 @@ const DIET_FILTERS = [
   { key: 'lactose_free', label: 'Без лактозы' },
   { key: 'gluten_free', label: 'Без глютена' },
 ];
+
+const MEAL_LABELS = {
+  breakfast: 'Завтрак',
+  lunch: 'Обед',
+  dinner: 'Ужин',
+  snack: 'Перекус',
+};
+
+const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+const MEAL_KCAL_SHARE = {
+  breakfast: 0.3,
+  lunch: 0.35,
+  dinner: 0.25,
+  snack: 0.1,
+};
 
 const mealIcons = {
   breakfast: HiOutlineSun,
@@ -45,68 +62,6 @@ const mealColors = {
   dinner: 'from-indigo-400 to-purple-500',
   snack: 'from-rose-400 to-pink-500',
 };
-
-/* ───── Menu generator ───── */
-function macroScore(item, targetRatio) {
-  if (!targetRatio) return Math.random();
-  const total = item.protein * 4 + item.fat * 9 + item.carb * 4;
-  if (total === 0) return Math.random();
-  const pPct = (item.protein * 4) / total * 100;
-  const fPct = (item.fat * 9) / total * 100;
-  const cPct = (item.carb * 4) / total * 100;
-  return Math.abs(pPct - targetRatio.protein) + Math.abs(fPct - targetRatio.fat) + Math.abs(cPct - targetRatio.carb);
-}
-
-function pickItems(pool, targetKcal, macroRatio, excludeIds = []) {
-  const filtered = excludeIds.length > 0 ? pool.filter((f) => !excludeIds.includes(f.id)) : pool;
-  const shuffled = [...filtered].sort((a, b) => {
-    const sa = macroScore(a, macroRatio) + Math.random() * 20;
-    const sb = macroScore(b, macroRatio) + Math.random() * 20;
-    return sa - sb;
-  });
-  const selected = [];
-  let remaining = targetKcal;
-
-  for (const item of shuffled) {
-    if (remaining <= 30) break;
-    const grams = Math.min(Math.round((remaining / item.kcal) * 100), 300);
-    if (grams < 30) continue;
-    const portion = {
-      ...item,
-      grams,
-      kcal: Math.round((item.kcal * grams) / 100),
-      protein: +((item.protein * grams) / 100).toFixed(1),
-      fat: +((item.fat * grams) / 100).toFixed(1),
-      carb: +((item.carb * grams) / 100).toFixed(1),
-    };
-    selected.push(portion);
-    remaining -= portion.kcal;
-    if (selected.length >= 3) break;
-  }
-  return selected;
-}
-
-function groupByMeal(foods) {
-  const groups = { breakfast: [], lunch: [], dinner: [], snack: [] };
-  for (const f of foods) {
-    if (groups[f.meal_type]) groups[f.meal_type].push(f);
-  }
-  return groups;
-}
-
-function generateMenu(totalKcal, macroRatio, foods) {
-  const grouped = groupByMeal(foods);
-  const bKcal = Math.round(totalKcal * 0.3);
-  const lKcal = Math.round(totalKcal * 0.35);
-  const dKcal = Math.round(totalKcal * 0.25);
-  const sKcal = totalKcal - bKcal - lKcal - dKcal;
-  return {
-    breakfast: { label: 'Завтрак', items: pickItems(grouped.breakfast, bKcal, macroRatio), targetKcal: bKcal },
-    lunch: { label: 'Обед', items: pickItems(grouped.lunch, lKcal, macroRatio), targetKcal: lKcal },
-    dinner: { label: 'Ужин', items: pickItems(grouped.dinner, dKcal, macroRatio), targetKcal: dKcal },
-    snack: { label: 'Перекус', items: pickItems(grouped.snack, sKcal, macroRatio), targetKcal: sKcal },
-  };
-}
 
 /* ───── Helpers ───── */
 function calcAge(bd) {
@@ -130,11 +85,30 @@ const GOALS = [
   { label: 'Набор массы (+15%)', factor: 1.15, emoji: '💪' },
 ];
 
-const mealTotal = (items) =>
+const sumItems = (items) =>
   items.reduce(
-    (a, i) => ({ kcal: a.kcal + i.kcal, protein: +(a.protein + i.protein).toFixed(1), fat: +(a.fat + i.fat).toFixed(1), carb: +(a.carb + i.carb).toFixed(1) }),
+    (a, i) => ({
+      kcal: a.kcal + i.kcal,
+      protein: +(a.protein + i.protein).toFixed(1),
+      fat: +(a.fat + i.fat).toFixed(1),
+      carb: +(a.carb + i.carb).toFixed(1),
+    }),
     { kcal: 0, protein: 0, fat: 0, carb: 0 },
   );
+
+function planToMenu(plan, targetKcal) {
+  if (!plan?.items) return null;
+  const menu = {};
+  for (const key of MEAL_ORDER) {
+    const items = plan.items.filter((i) => i.meal_type === key);
+    menu[key] = {
+      label: MEAL_LABELS[key],
+      items,
+      targetKcal: Math.round((targetKcal ?? plan.target_kcal) * MEAL_KCAL_SHARE[key]),
+    };
+  }
+  return menu;
+}
 
 /* ───── Component ───── */
 export default function DietPlan() {
@@ -147,19 +121,12 @@ export default function DietPlan() {
   const [macros, setMacros] = useState({ protein: 30, fat: 25, carb: 45 });
   const [dietFilters, setDietFilters] = useState({ vegan: false, lactose_free: false, gluten_free: false });
   const [menu, setMenu] = useState(null);
-  const [cachedFoods, setCachedFoods] = useState(null);
-  const [animating, setAnimating] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genStatus, setGenStatus] = useState(null); // pending | processing | completed | failed
+  const [genError, setGenError] = useState(null);
   const [history, setHistory] = useState([]);
   const [expandedPlan, setExpandedPlan] = useState(null);
-
-  const fetchFoods = async (filters) => {
-    const params = new URLSearchParams();
-    if (filters.vegan) params.set('vegan', 'true');
-    if (filters.lactose_free) params.set('lactose_free', 'true');
-    if (filters.gluten_free) params.set('gluten_free', 'true');
-    const { data } = await api.get(`/foods?${params}`);
-    return data;
-  };
+  const pollRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -177,76 +144,64 @@ export default function DietPlan() {
     fetchHistory();
   }, [user.id, fetchHistory]);
 
+  useEffect(() => () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+  }, []);
+
   const age = calcAge(user.birth_date);
   const bmr = lastWeight ? calcBMR(user.gender, lastWeight, user.height, age) : null;
   const tdee = bmr ? bmr * ACTIVITY[activityIdx].factor : null;
   const autoKcal = tdee ? Math.round(tdee * GOALS[goalIdx].factor) : null;
   const targetKcal = customMode && customKcal ? Math.round(Number(customKcal)) : autoKcal;
 
+  const pollPlan = useCallback(async (planId, targetKcalForPoll) => {
+    try {
+      const { data } = await api.get(`/menu-plans/${planId}`);
+      setGenStatus(data.status);
+
+      if (data.status === 'completed') {
+        setMenu(planToMenu(data, targetKcalForPoll));
+        setGenerating(false);
+        fetchHistory();
+        toast.success('Меню сгенерировано!');
+        return;
+      }
+      if (data.status === 'failed') {
+        setGenerating(false);
+        setGenError(data.error_message || 'Ошибка генерации');
+        toast.error('Не удалось сгенерировать меню');
+        fetchHistory();
+        return;
+      }
+      pollRef.current = setTimeout(() => pollPlan(planId, targetKcalForPoll), 2000);
+    } catch {
+      setGenerating(false);
+      setGenError('Не удалось получить статус генерации');
+      toast.error('Ошибка опроса статуса');
+    }
+  }, [fetchHistory]);
+
   const handleGenerate = async () => {
     if (!targetKcal) return;
-    setAnimating(true);
+    setGenError(null);
     setMenu(null);
+    setGenerating(true);
+    setGenStatus('pending');
     try {
-      const freshFoods = await fetchFoods(dietFilters);
-      setCachedFoods(freshFoods);
-      const ratio = customMode ? macros : null;
-      const generated = generateMenu(targetKcal, ratio, freshFoods);
-      setMenu(generated);
-
-      // build flat items list for saving
-      const allItems = Object.entries(generated).flatMap(([mealKey, meal]) =>
-        meal.items.map((item) => ({
-          meal_type: mealKey,
-          food_id: item.id,
-          name: item.name,
-          grams: item.grams,
-          kcal: item.kcal,
-          protein: item.protein,
-          fat: item.fat,
-          carb: item.carb,
-        }))
-      );
-      const total = Object.values(generated).reduce(
-        (acc, meal) => {
-          const t = mealTotal(meal.items);
-          return {
-            kcal: acc.kcal + t.kcal,
-            protein: +(acc.protein + t.protein).toFixed(1),
-            fat: +(acc.fat + t.fat).toFixed(1),
-            carb: +(acc.carb + t.carb).toFixed(1),
-          };
-        },
-        { kcal: 0, protein: 0, fat: 0, carb: 0 }
-      );
-
-      await api.post('/menu-plans', {
+      const { data } = await api.post('/menu-plans/generate', {
         target_kcal: targetKcal,
-        total_kcal: total.kcal,
-        total_protein: total.protein,
-        total_fat: total.fat,
-        total_carb: total.carb,
-        items: allItems,
+        macro_ratio: customMode ? macros : null,
+        diet_filters: dietFilters,
       });
       fetchHistory();
-      toast.success('Меню сгенерировано и сохранено!');
-    } catch {
-      toast.error('Не удалось загрузить продукты');
-    } finally {
-      setAnimating(false);
+      pollPlan(data.id, targetKcal);
+    } catch (err) {
+      setGenerating(false);
+      setGenStatus(null);
+      const msg = err?.response?.data?.detail || 'Не удалось запустить генерацию';
+      setGenError(msg);
+      toast.error(msg);
     }
-  };
-
-  const handleRegenerateMeal = (mealKey) => {
-    if (!menu || !cachedFoods) return;
-    const grouped = groupByMeal(cachedFoods);
-    const ratio = customMode ? macros : null;
-    const currentIds = menu[mealKey].items.map((i) => i.id);
-    const newItems = pickItems(grouped[mealKey], menu[mealKey].targetKcal, ratio, currentIds);
-    setMenu((prev) => ({
-      ...prev,
-      [mealKey]: { ...prev[mealKey], items: newItems },
-    }));
   };
 
   const handleDeletePlan = async (planId) => {
@@ -296,7 +251,7 @@ export default function DietPlan() {
 
   const dayTotal = menu
     ? Object.values(menu).reduce(
-        (a, meal) => { const t = mealTotal(meal.items); return { kcal: a.kcal + t.kcal, protein: +(a.protein + t.protein).toFixed(1), fat: +(a.fat + t.fat).toFixed(1), carb: +(a.carb + t.carb).toFixed(1) }; },
+        (a, meal) => { const t = sumItems(meal.items); return { kcal: a.kcal + t.kcal, protein: +(a.protein + t.protein).toFixed(1), fat: +(a.fat + t.fat).toFixed(1), carb: +(a.carb + t.carb).toFixed(1) }; },
         { kcal: 0, protein: 0, fat: 0, carb: 0 },
       )
     : null;
@@ -319,7 +274,7 @@ export default function DietPlan() {
             transition={{ delay: 0.1 }}
             className="text-gray-400 mt-1"
           >
-            Индивидуальный план питания на основе ваших параметров
+            Индивидуальный план питания, собранный нейросетью под ваши параметры
           </motion.p>
         </div>
         {menu && (
@@ -486,9 +441,40 @@ export default function DietPlan() {
           </span>
         </div>
 
-        <Button onClick={handleGenerate} loading={animating} disabled={!targetKcal || (customMode && macros.protein + macros.fat + macros.carb !== 100)} icon={menu ? HiOutlineArrowPath : HiOutlineBolt} size="lg">
+        <Button
+          onClick={handleGenerate}
+          loading={generating}
+          disabled={generating || !targetKcal || (customMode && macros.protein + macros.fat + macros.carb !== 100)}
+          icon={menu ? HiOutlineArrowPath : HiOutlineBolt}
+          size="lg"
+        >
           {menu ? 'Сгенерировать заново' : 'Сгенерировать меню'}
         </Button>
+
+        {generating && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800"
+          >
+            <HiOutlineSparkles className="w-5 h-5 animate-pulse" />
+            <div>
+              <p className="font-semibold">
+                {genStatus === 'pending' && 'Запрос отправлен, ждём нейросеть…'}
+                {genStatus === 'processing' && 'Нейросеть формирует меню…'}
+              </p>
+              <p className="text-emerald-700/80 text-xs">
+                Это может занять до минуты. Можно не закрывать вкладку — результат сохранится в истории.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {genError && !generating && (
+          <div className="mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+            {genError}
+          </div>
+        )}
       </GlassCard>
 
       {/* Menu cards */}
@@ -502,7 +488,7 @@ export default function DietPlan() {
             className="space-y-4"
           >
             {Object.entries(menu).map(([key, meal], idx) => {
-              const totals = mealTotal(meal.items);
+              const totals = sumItems(meal.items);
               const Icon = mealIcons[key];
               const gradient = mealColors[key];
               return (
@@ -524,20 +510,9 @@ export default function DietPlan() {
                         <p className="text-white/70 text-xs">~{meal.targetKcal} ккал</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <motion.button
-                        whileHover={{ scale: 1.1, rotate: 180 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handleRegenerateMeal(key)}
-                        className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/30 transition-colors no-print"
-                        title="Заменить блюда"
-                      >
-                        <HiOutlineArrowPath className="w-4 h-4 text-white" />
-                      </motion.button>
-                      <div className="text-right text-white">
-                        <p className="text-2xl font-extrabold">{totals.kcal}</p>
-                        <p className="text-white/70 text-xs">ккал</p>
-                      </div>
+                    <div className="text-right text-white">
+                      <p className="text-2xl font-extrabold">{totals.kcal}</p>
+                      <p className="text-white/70 text-xs">ккал</p>
                     </div>
                   </div>
 
@@ -644,23 +619,33 @@ export default function DietPlan() {
                         hour: '2-digit', minute: '2-digit',
                       })}
                     </span>
-                    <span className="font-semibold text-gray-700">{plan.total_kcal} ккал</span>
-                    <span className="hidden sm:inline text-gray-400">
-                      Б: <b className="text-gray-600">{plan.total_protein}г</b>{' '}
-                      Ж: <b className="text-gray-600">{plan.total_fat}г</b>{' '}
-                      У: <b className="text-gray-600">{plan.total_carb}г</b>
-                    </span>
+                    {plan.status === 'completed' ? (
+                      <>
+                        <span className="font-semibold text-gray-700">{plan.total_kcal} ккал</span>
+                        <span className="hidden sm:inline text-gray-400">
+                          Б: <b className="text-gray-600">{plan.total_protein}г</b>{' '}
+                          Ж: <b className="text-gray-600">{plan.total_fat}г</b>{' '}
+                          У: <b className="text-gray-600">{plan.total_carb}г</b>
+                        </span>
+                      </>
+                    ) : plan.status === 'failed' ? (
+                      <span className="text-red-500 font-semibold">Ошибка генерации</span>
+                    ) : (
+                      <span className="text-emerald-600 font-semibold animate-pulse">Генерируется…</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleExpandPlan(plan.id)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
-                      title="Подробнее"
-                    >
-                      {expandedPlan === plan.id
-                        ? <HiOutlineChevronUp className="w-4 h-4" />
-                        : <HiOutlineChevronDown className="w-4 h-4" />}
-                    </button>
+                    {plan.status === 'completed' && (
+                      <button
+                        onClick={() => handleExpandPlan(plan.id)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
+                        title="Подробнее"
+                      >
+                        {expandedPlan === plan.id
+                          ? <HiOutlineChevronUp className="w-4 h-4" />
+                          : <HiOutlineChevronDown className="w-4 h-4" />}
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeletePlan(plan.id)}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
@@ -681,14 +666,13 @@ export default function DietPlan() {
                       className="overflow-hidden border-t border-gray-100"
                     >
                       <div className="px-4 py-3 bg-gray-50/50 space-y-3">
-                        {['breakfast', 'lunch', 'dinner', 'snack'].map((mealKey) => {
-                          const mealLabels = { breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус' };
+                        {MEAL_ORDER.map((mealKey) => {
                           const items = plan.items.filter((i) => i.meal_type === mealKey);
                           if (items.length === 0) return null;
                           return (
                             <div key={mealKey}>
                               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                {mealLabels[mealKey]}
+                                {MEAL_LABELS[mealKey]}
                               </p>
                               <div className="space-y-1">
                                 {items.map((item) => (
