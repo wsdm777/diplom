@@ -54,32 +54,48 @@ class MenuPlanService:
 
 
 async def _try_llm(
+    plan_id: int,
     request: MenuPlanGenerateRequest,
     foods: list,
-) -> LLMGenerationResult | None:
-    """Try the LLM with a hard timeout. Returns None on timeout or any error."""
+) -> tuple[LLMGenerationResult | None, str]:
+    """Try the LLM with a hard timeout.
+
+    Returns (result, reason). reason is empty on success, otherwise describes
+    why we fell through to the manual generator.
+    """
     if not settings.OPENROUTER_API_KEY:
-        return None
+        return None, "OPENROUTER_API_KEY not configured"
+
+    timeout = settings.LLM_TIMEOUT_SECONDS
+    logger.info(
+        "Menu plan %s: calling LLM (model=%s, timeout=%.1fs, target_kcal=%s, foods=%d)",
+        plan_id,
+        settings.OPENROUTER_MODEL,
+        timeout,
+        request.target_kcal,
+        len(foods),
+    )
+    started = asyncio.get_event_loop().time()
     try:
         llm = LLMMenuService()
-        return await asyncio.wait_for(
+        result = await asyncio.wait_for(
             llm.generate(
                 target_kcal=request.target_kcal,
                 macro_ratio=request.macro_ratio,
                 diet_filters=request.diet_filters,
                 foods=foods,
             ),
-            timeout=settings.LLM_TIMEOUT_SECONDS,
+            timeout=timeout,
         )
+        elapsed = asyncio.get_event_loop().time() - started
+        logger.info("Menu plan %s: LLM responded in %.2fs", plan_id, elapsed)
+        return result, ""
     except asyncio.TimeoutError:
-        logger.warning(
-            "LLM did not respond within %.1fs — using manual fallback",
-            settings.LLM_TIMEOUT_SECONDS,
-        )
-        return None
+        elapsed = asyncio.get_event_loop().time() - started
+        return None, f"LLM timeout after {elapsed:.2f}s (budget {timeout:.1f}s)"
     except Exception as exc:  # noqa: BLE001 — any LLM failure should fall through to manual
-        logger.warning("LLM failed (%s) — using manual fallback", exc)
-        return None
+        elapsed = asyncio.get_event_loop().time() - started
+        return None, f"LLM error after {elapsed:.2f}s: {type(exc).__name__}: {exc}"
 
 
 async def run_generation_job(plan_id: int, request: MenuPlanGenerateRequest) -> None:
@@ -100,13 +116,28 @@ async def run_generation_job(plan_id: int, request: MenuPlanGenerateRequest) -> 
                 gluten_free=request.diet_filters.gluten_free,
             )
 
-            result = await _try_llm(request, foods)
+            result, fallback_reason = await _try_llm(plan_id, request, foods)
+            source = "llm"
             if result is None:
+                logger.warning(
+                    "Menu plan %s: %s — falling back to manual generator",
+                    plan_id,
+                    fallback_reason,
+                )
+                manual_started = asyncio.get_event_loop().time()
                 result = generate_manual(
                     target_kcal=request.target_kcal,
                     macro_ratio=request.macro_ratio,
                     diet_filters=request.diet_filters,
                     foods=foods,
+                )
+                manual_elapsed = asyncio.get_event_loop().time() - manual_started
+                source = "manual"
+                logger.info(
+                    "Menu plan %s: manual generator produced %d items in %.3fs",
+                    plan_id,
+                    len(result.items),
+                    manual_elapsed,
                 )
 
             await repo.fill_completed(
@@ -117,7 +148,12 @@ async def run_generation_job(plan_id: int, request: MenuPlanGenerateRequest) -> 
                 total_fat=result.total_fat,
                 total_carb=result.total_carb,
             )
-            logger.info("Menu plan %s generated", plan_id)
+            logger.info(
+                "Menu plan %s generated (source=%s, total_kcal=%d)",
+                plan_id,
+                source,
+                result.total_kcal,
+            )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Menu plan %s generation failed", plan_id)
             await repo.set_status(
