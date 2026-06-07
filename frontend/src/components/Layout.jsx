@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import SupportChat from './SupportChat';
+import LegalModal from './LegalModal';
 import {
   HiOutlineHome,
   HiOutlineScale,
@@ -36,6 +37,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [legalModal, setLegalModal] = useState({ open: false, tab: 'terms' });
   const navLinks =
     user?.role === 'admin' ? adminLinks :
     user?.role === 'operator' ? operatorLinks :
@@ -240,9 +242,31 @@ export default function Layout() {
             <p className="text-xs text-gray-400 text-center">
               Веб-сервис для автоматизированного формирования индивидуальных диет и меню &copy; {new Date().getFullYear()}
             </p>
+            <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setLegalModal({ open: true, tab: 'terms' })}
+                className="text-gray-500 hover:text-emerald-600 hover:underline transition-colors cursor-pointer"
+              >
+                Пользовательское соглашение
+              </button>
+              <button
+                type="button"
+                onClick={() => setLegalModal({ open: true, tab: 'privacy' })}
+                className="text-gray-500 hover:text-emerald-600 hover:underline transition-colors cursor-pointer"
+              >
+                Политика конфиденциальности
+              </button>
+            </nav>
           </div>
         </div>
       </footer>
+
+      <LegalModal
+        isOpen={legalModal.open}
+        initialTab={legalModal.tab}
+        onClose={() => setLegalModal((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }
