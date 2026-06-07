@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user_id
 from app.db.session import get_session
-from app.schemas.menu_plan import MenuPlanCreate, MenuPlanOut, MenuPlanSummary
-from app.services.menu_plan_service import MenuPlanService
+from app.schemas.menu_plan import (
+    MenuPlanCreate,
+    MenuPlanGenerateRequest,
+    MenuPlanOut,
+    MenuPlanSummary,
+)
+from app.services.menu_plan_service import MenuPlanService, run_generation_job
 
 router = APIRouter(prefix="/menu-plans", tags=["menu-plans"])
 
@@ -16,6 +21,18 @@ async def save_menu_plan(
     session: AsyncSession = Depends(get_session),
 ):
     return await MenuPlanService(session).save(current_user_id, data)
+
+
+@router.post("/generate", response_model=MenuPlanOut, status_code=202)
+async def generate_menu_plan(
+    data: MenuPlanGenerateRequest,
+    background_tasks: BackgroundTasks,
+    current_user_id: int = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    plan = await MenuPlanService(session).start_generation(current_user_id, data)
+    background_tasks.add_task(run_generation_job, plan.id, data)
+    return plan
 
 
 @router.get("", response_model=list[MenuPlanSummary])
