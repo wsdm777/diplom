@@ -47,6 +47,21 @@ function bmiCategory(bmi) {
   return { label: 'Ожирение', color: 'text-red-600', bg: 'bg-red-100' };
 }
 
+const BMI_STOPS = [15, 18.5, 25, 30, 40];
+
+function bmiToPosition(bmi) {
+  if (bmi <= BMI_STOPS[0]) return 0;
+  if (bmi >= BMI_STOPS[BMI_STOPS.length - 1]) return 100;
+  const segmentWidth = 100 / (BMI_STOPS.length - 1);
+  for (let i = 0; i < BMI_STOPS.length - 1; i++) {
+    if (bmi <= BMI_STOPS[i + 1]) {
+      const frac = (bmi - BMI_STOPS[i]) / (BMI_STOPS[i + 1] - BMI_STOPS[i]);
+      return i * segmentWidth + frac * segmentWidth;
+    }
+  }
+  return 100;
+}
+
 const activityLevels = [
   { label: 'Минимальная (сидячий образ жизни)', factor: 1.2 },
   { label: 'Лёгкая (1-3 тренировки/нед)', factor: 1.375 },
@@ -166,7 +181,7 @@ export default function Dashboard() {
             <div className="h-3 bg-gradient-to-r from-blue-400 via-emerald-400 via-60% to-red-400 rounded-full" />
             <motion.div
               initial={{ left: '0%' }}
-              animate={{ left: `${Math.min(Math.max(((bmi - 15) / 25) * 100, 0), 100)}%` }}
+              animate={{ left: `${bmiToPosition(bmi)}%` }}
               transition={{ delay: 0.5, duration: 0.8, ease: 'easeOut' }}
               className="absolute -bottom-5 -translate-x-1/2 flex flex-col items-center"
             >
